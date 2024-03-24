@@ -28,7 +28,7 @@ def _container_config() -> Dict:
                 raise errors.ConfigError(
                     f'Environment variable "{key}" not set'
                 )
-    return {
+    val = {
         "debug": True,
         "show_sql": int(os.getenv("LOG_SQL", 0)),
         "data_url": os.getenv("DATA_URL", "data/"),
@@ -42,6 +42,11 @@ def _container_config() -> Dict:
             "db": os.getenv("POSTGRES_DB", os.getenv("POSTGRES_USER")),
         },
     }
+    if "SZURUBOORU_NAME" in os.environ:
+        val["name"] = os.getenv("SZURUBOORU_NAME")
+    if "SZURUBOORU_SECRET" in os.environ:
+        val["secret"] = os.getenv("SZURUBOORU_SECRET")
+    return val
 
 
 def _file_config(filename: str) -> Dict:

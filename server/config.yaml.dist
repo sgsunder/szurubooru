@@ -9,9 +9,8 @@ domain: # example: http://example.com
 secret: change
 
 # Delete thumbnails and source files on post delete
-# Original functionality is no, to mitigate the impacts of admins going
-# on unchecked post purges.
-delete_source_files: no
+# Used to mitigate the impacts of admins going on unchecked post purges.
+delete_source_files: yes
 
 thumbnails:
     avatar_width: 300
@@ -20,8 +19,8 @@ thumbnails:
     post_height: 300
 
 # settings used to download files from the web on behalf of the api users
-user_agent:
-max_dl_filesize: 25.0E+6 # maximum filesize limit in bytes
+user_agent: Mozilla/5.0 (compatible; szurubooru/2.5)
+max_dl_filesize: 2.0E+9 # maximum filesize limit in bytes
 
 # automatically convert animated GIF uploads to video formats
 convert:
