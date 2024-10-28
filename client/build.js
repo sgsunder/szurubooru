@@ -90,8 +90,7 @@ function bundleHtml() {
         }).trim();
     }
 
-    const baseHtml = readTextFile('./html/index.htm')
-        .replace('<!-- Base HTML Placeholder -->', `<base href="${baseUrl()}"/>`);
+    const baseHtml = readTextFile('./html/index.htm');
     fs.writeFileSync('./public/index.htm', minifyHtml(baseHtml));
 
     let compiledTemplateJs = [
