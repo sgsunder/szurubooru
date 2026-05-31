@@ -64,15 +64,14 @@
                 <div class='source-inputs'>
                     <% var _sources = (ctx.post.source || '').split('\n').filter(function(s) { return s !== ''; }); %>
                     <% _sources.forEach(function(src) { %>
-                        <%= ctx.makeTextInput({
-                            class: 'source-line',
-                            value: src,
-                        }) %>
+                        <div class='source-row'>
+                            <%= ctx.makeTextInput({ class: 'source-line', value: src }) %>
+                            <button type='button' class='source-tag-btn'><i class='fa fa-tag'></i></button>
+                        </div>
                     <% }); %>
-                    <%= ctx.makeTextInput({
-                        class: 'source-line',
-                        placeholder: 'source URLs',
-                    }) %>
+                    <div class='source-row'>
+                        <%= ctx.makeTextInput({ class: 'source-line', placeholder: 'source URLs' }) %>
+                    </div>
                 </div>
             </section>
         <% } %>
