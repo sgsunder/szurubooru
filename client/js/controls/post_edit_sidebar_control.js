@@ -155,6 +155,18 @@ class PostEditSidebarControl extends events.EventTarget {
                     this._evtSourceInput(e);
                 }
             });
+            this._sourceContainerNode.addEventListener("click", (e) => {
+                const btn = e.target.closest(".source-tag-btn");
+                if (btn) {
+                    e.preventDefault();
+                    const input = btn
+                        .closest(".source-row")
+                        .querySelector("input.source-line");
+                    if (input && input.value) {
+                        this._applySourceRulesToTag(input.value);
+                    }
+                }
+            });
         }
 
         if (this._addNoteLinkNode) {
@@ -525,27 +537,83 @@ class PostEditSidebarControl extends events.EventTarget {
         return this._formNode.querySelector(".post-source .source-inputs");
     }
 
+    _applySourceRulesToTag(source) {
+        const rules = [
+            {   // Twitter
+                pattern: /https?:\/\/(?:\w*twitter|x|fix\w*x).com\/(\w*)\/status\/(\d{18,19})\??.*/,
+                replacement: "$1.twitter"
+            },
+            {   // Bluesky
+                pattern: /https?:\/\/[^/]*\.?bsky\.?[^/]*\/profile\/([^/]+\.bsky\.social)\/post\/\w+.*/,
+                replacement: "$1"
+            },
+            {   // Bluesky Custom URL
+                pattern: /https?:\/\/[^/]*\.?bsky\.?[^/]*\/profile\/([^/]+)\/post\/\w+.*/,
+                replacement: "$1.bsky_custom"
+            },
+            {   // Tumblr
+                pattern: /https?:\/\/[^/]*\.?tumblr\.?[^/]*\/([^/]+)\/\d+.*\/?/,
+                replacement: "$1.tumblr"
+            },
+            {   // Newgrounds
+                pattern: /https?:\/\/[^/]*\.?newgrounds\.?[^/]*\/art\/view\/([^/]+)\/(.+)\/?/,
+                replacement: "$1.newgrounds"
+            },
+            {   // HF
+                pattern: /https?:\/\/[^/]*\.?hentai-foundry\.?[^/]*\/pictures\/user\/([^/]+)\/(\w+).*\/?/,
+                replacement: "$1.hentai-foundry"
+            },
+        ];
+
+        for (const { pattern, replacement } of rules) {
+            if (pattern.test(source)) {
+                const tag = source.replace(pattern, replacement);
+                if (tag) {
+                    this._tagControl.addTagByName(tag, "source-match");
+                }
+                return;
+            }
+        }
+    }
+
     _evtSourceInput(e) {
         const container = this._sourceContainerNode;
-        const inputs = [...container.querySelectorAll("input.source-line")];
+        const rows = [...container.querySelectorAll(".source-row")];
 
-        for (let i = 0; i < inputs.length - 1; i++) {
-            if (inputs[i].value === "") {
-                container.removeChild(inputs[i]);
+        for (let i = 0; i < rows.length - 1; i++) {
+            if (rows[i].querySelector("input.source-line").value === "") {
+                container.removeChild(rows[i]);
             }
         }
 
-        const remaining = [...container.querySelectorAll("input.source-line")];
-        const lastInput = remaining[remaining.length - 1];
+        const remaining = [...container.querySelectorAll(".source-row")];
+        const lastRow = remaining[remaining.length - 1];
+        const lastInput = lastRow.querySelector("input.source-line");
         if (lastInput.value !== "") {
+            if (!lastRow.querySelector(".source-tag-btn")) {
+                lastRow.appendChild(this._makeSourceTagButton());
+            }
+            const newRow = document.createElement("div");
+            newRow.className = "source-row";
             const newInput = document.createElement("input");
             newInput.type = "text";
             newInput.className = "source-line";
-            container.appendChild(newInput);
             newInput.addEventListener("change", () =>
                 this.dispatchEvent(new CustomEvent("change"))
             );
+            newRow.appendChild(newInput);
+            container.appendChild(newRow);
         }
+    }
+
+    _makeSourceTagButton() {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "source-tag-btn";
+        const icon = document.createElement("i");
+        icon.className = "fa fa-tag";
+        btn.appendChild(icon);
+        return btn;
     }
 
     get _featureLinkNode() {
