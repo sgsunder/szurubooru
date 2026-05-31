@@ -8,7 +8,7 @@ const views = require("../util/views.js");
 const template = views.getTemplate("expander");
 
 class ExpanderControl {
-    constructor(name, title, nodes) {
+    constructor(name, title, nodes, noToggle = false) {
         this._name = name;
 
         nodes = Array.from(nodes).filter((n) => n);
@@ -20,9 +20,14 @@ class ExpanderControl {
         const toggleLinkNode = expanderNode.querySelector("a");
         const toggleIconNode = expanderNode.querySelector("i");
         const expanderContentNode = expanderNode.querySelector("div");
-        toggleLinkNode.addEventListener("click", (e) =>
-            this._evtToggleClick(e)
-        );
+
+        if (noToggle) {
+            expanderNode.classList.add("no-toggle");
+        } else {
+            toggleLinkNode.addEventListener("click", (e) =>
+                this._evtToggleClick(e)
+            );
+        }
 
         nodes[0].parentNode.insertBefore(expanderNode, nodes[0]);
 
@@ -33,13 +38,15 @@ class ExpanderControl {
         this._expanderNode = expanderNode;
         this._toggleIconNode = toggleIconNode;
 
-        expanderNode.classList.toggle(
-            "collapsed",
-            this._allStates[this._name] === undefined
-                ? false
-                : !this._allStates[this._name]
-        );
-        this._syncIcon();
+        if (!noToggle) {
+            expanderNode.classList.toggle(
+                "collapsed",
+                this._allStates[this._name] === undefined
+                    ? false
+                    : !this._allStates[this._name]
+            );
+            this._syncIcon();
+        }
     }
 
     // eslint-disable-next-line accessor-pairs
