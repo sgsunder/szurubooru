@@ -60,10 +60,20 @@
 
         <% if (ctx.canEditPostSource) { %>
             <section class='post-source'>
-                <%= ctx.makeTextarea({
-                    text: 'Source',
-                    value: ctx.post.source,
-                }) %>
+                <label>Source</label>
+                <div class='source-inputs'>
+                    <% var _sources = (ctx.post.source || '').split('\n').filter(function(s) { return s !== ''; }); %>
+                    <% _sources.forEach(function(src) { %>
+                        <%= ctx.makeTextInput({
+                            class: 'source-line',
+                            value: src,
+                        }) %>
+                    <% }); %>
+                    <%= ctx.makeTextInput({
+                        class: 'source-line',
+                        placeholder: 'source URLs',
+                    }) %>
+                </div>
             </section>
         <% } %>
 
