@@ -149,6 +149,14 @@ class PostEditSidebarControl extends events.EventTarget {
                 : "none";
         }
 
+        if (this._sourceContainerNode) {
+            this._sourceContainerNode.addEventListener("input", (e) => {
+                if (e.target.classList.contains("source-line")) {
+                    this._evtSourceInput(e);
+                }
+            });
+        }
+
         if (this._addNoteLinkNode) {
             this._addNoteLinkNode.addEventListener("click", (e) =>
                 this._evtAddNoteClick(e)
@@ -436,8 +444,15 @@ class PostEditSidebarControl extends events.EventTarget {
                             ? this._newPostThumbnail
                             : undefined,
 
-                    source: this._sourceInputNode
-                        ? this._sourceInputNode.value
+                    source: this._sourceContainerNode
+                        ? Array.from(
+                              this._sourceContainerNode.querySelectorAll(
+                                  "input.source-line"
+                              )
+                          )
+                              .map((input) => input.value.trim())
+                              .filter((v) => v !== "")
+                              .join("\n")
                         : undefined,
                 },
             })
@@ -506,8 +521,31 @@ class PostEditSidebarControl extends events.EventTarget {
         return this._formNode.querySelector(".post-thumbnail a");
     }
 
-    get _sourceInputNode() {
-        return this._formNode.querySelector(".post-source textarea");
+    get _sourceContainerNode() {
+        return this._formNode.querySelector(".post-source .source-inputs");
+    }
+
+    _evtSourceInput(e) {
+        const container = this._sourceContainerNode;
+        const inputs = [...container.querySelectorAll("input.source-line")];
+
+        for (let i = 0; i < inputs.length - 1; i++) {
+            if (inputs[i].value === "") {
+                container.removeChild(inputs[i]);
+            }
+        }
+
+        const remaining = [...container.querySelectorAll("input.source-line")];
+        const lastInput = remaining[remaining.length - 1];
+        if (lastInput.value !== "") {
+            const newInput = document.createElement("input");
+            newInput.type = "text";
+            newInput.className = "source-line";
+            container.appendChild(newInput);
+            newInput.addEventListener("change", () =>
+                this.dispatchEvent(new CustomEvent("change"))
+            );
+        }
     }
 
     get _featureLinkNode() {
