@@ -56,17 +56,20 @@ class PostEditSidebarControl extends events.EventTarget {
             "Basic info",
             this._hostNode.querySelectorAll(
                 ".safety, .relations, .flags, .post-source"
-            )
+            ),
+            true
         );
         this._tagsExpander = new ExpanderControl(
             "post-tags",
             `Tags (${this._post.tags.length})`,
-            this._hostNode.querySelectorAll(".tags")
+            this._hostNode.querySelectorAll(".tags"),
+            true
         );
         this._notesExpander = new ExpanderControl(
             "post-notes",
             "Notes",
-            this._hostNode.querySelectorAll(".notes")
+            this._hostNode.querySelectorAll(".notes"),
+            true
         );
         this._poolsExpander = new ExpanderControl(
             "post-pools",
@@ -76,12 +79,14 @@ class PostEditSidebarControl extends events.EventTarget {
         new ExpanderControl(
             "post-content",
             "Content",
-            this._hostNode.querySelectorAll(".post-content, .post-thumbnail")
+            this._hostNode.querySelectorAll(".post-content, .post-thumbnail"),
+            true
         );
         new ExpanderControl(
             "post-management",
             "Management",
-            this._hostNode.querySelectorAll(".management")
+            this._hostNode.querySelectorAll(".management"),
+            true
         );
 
         this._syncExpanderTitles();
