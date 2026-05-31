@@ -156,10 +156,12 @@
                 padding: 0
 
     .post-source
-        textarea
-            white-space: pre
-            overflow-wrap: normal
-            overflow-x: scroll
+        .source-inputs
+            display: flex
+            flex-direction: column
+            gap: 0.3em
+            input
+                width: 100%
 
     form
         width: auto
