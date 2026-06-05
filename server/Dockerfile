@@ -1,60 +1,47 @@
-ARG ALPINE_VERSION=3.22
+ARG PYTHON_VERSION=3.12
 
 
-FROM alpine:$ALPINE_VERSION AS prereqs
+FROM python:${PYTHON_VERSION}-slim AS deps
 WORKDIR /opt/app
 
-RUN apk --no-cache add \
-        python3 \
-        python3-dev \
-        py3-pip \
-        build-base \
-        libheif \
-        libheif-dev \
-        libavif \
-        libavif-dev \
+RUN pip install --no-cache-dir pdm
+
+COPY pyproject.toml pdm.lock ./
+RUN pdm export -G server -o requirements.txt \
+    && pdm export -G server -G dev -o requirements-dev.txt
+
+
+FROM python:${PYTHON_VERSION}-slim AS prereqs
+WORKDIR /opt/app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        dumb-init \
         ffmpeg \
-        # from requirements.txt: \
-        py3-yaml \
-        py3-psycopg2 \
-        py3-sqlalchemy \
-        py3-certifi \
-        py3-numpy \
-        py3-pillow \
-        py3-pynacl \
-        py3-tz \
-        py3-pyrfc3339
-RUN pip3 install --no-cache-dir --disable-pip-version-check --break-system-packages \
-        "alembic>=0.8.5" \
-        "coloredlogs==5.0" \
-        yt-dlp \
-        # pillow-heif v1.5.0 breaks linux/arm/v7 support
-        "pillow-heif>=1.0.0,<1.5.0" \
-        "pillow-avif-plugin>=1.4.6"
-RUN apk --no-cache del py3-pip
+        libheif-dev \
+        libavif-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deps /opt/app/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
 COPY ./ /opt/app/
-RUN rm -rf /opt/app/szurubooru/tests
 
 
 FROM --platform=$BUILDPLATFORM prereqs AS testing
 WORKDIR /opt/app
 
-RUN apk --no-cache add \
-        py3-pip \
-        py3-pytest \
-        py3-pytest-cov \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
         postgresql \
- && pip3 install --no-cache-dir --disable-pip-version-check --break-system-packages \
-        pytest-pgsql \
-        pytest-xdist \
-        freezegun \
- && apk --no-cache del py3-pip \
- && addgroup app \
- && adduser -SDH -h /opt/app -g '' -G app app \
- && chown app:app /opt/app
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=deps /opt/app/requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt && rm requirements-dev.txt
 
-COPY --chown=app:app ./szurubooru/tests /opt/app/szurubooru/tests/
+RUN addgroup --system app \
+    && adduser --system --home /opt/app --ingroup app --no-create-home --gecos '' app \
+    && chown app:app /opt/app
 
 ENV TEST_ENVIRONMENT="true"
 USER app
@@ -68,16 +55,12 @@ WORKDIR /opt/app
 ARG PUID=1000
 ARG PGID=1000
 
-RUN apk --no-cache add \
-    dumb-init \
-    py3-pip \
-    py3-setuptools \
-    py3-waitress \
-    && pip3 install --no-cache-dir --disable-pip-version-check --break-system-packages \
-    hupper \
-    && mkdir -p /opt/app /data \
-    && addgroup -g ${PGID} app \
-    && adduser -SDH -h /opt/app -g '' -G app -u ${PUID} app \
+COPY --from=deps /opt/app/requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt && rm requirements-dev.txt
+
+RUN mkdir -p /data \
+    && addgroup --gid ${PGID} app \
+    && adduser --uid ${PUID} --ingroup app --home /opt/app --no-create-home --disabled-password --gecos '' app \
     && chown -R app:app /opt/app /data
 
 USER app
@@ -94,23 +77,15 @@ VOLUME ["/data/"]
 
 
 FROM prereqs AS release
-
-COPY ./ /opt/app/
-RUN rm -rf /opt/app/szurubooru/tests
-
 WORKDIR /opt/app
 
 ARG PUID=1000
 ARG PGID=1000
 
-RUN apk --no-cache add \
-        dumb-init \
-        py3-setuptools \
-        py3-waitress \
- && mkdir -p /opt/app /data \
- && addgroup -g ${PGID} app \
- && adduser -SDH -h /opt/app -g '' -G app -u ${PUID} app \
- && chown -R app:app /opt/app /data
+RUN mkdir -p /data \
+    && addgroup --gid ${PGID} app \
+    && adduser --uid ${PUID} --ingroup app --home /opt/app --no-create-home --disabled-password --gecos '' app \
+    && chown -R app:app /opt/app /data
 
 USER app
 CMD ["/opt/app/docker-start.sh"]

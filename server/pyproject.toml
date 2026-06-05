@@ -19,15 +19,20 @@ dependencies = [
 ]
 
 [dependency-groups]
+server = [
+    "alembic",
+    "waitress",
+]
 dev = [
+    "flake8",
+    "flake8-pyproject",
+    "freezegun",
+    "hupper",
+    "pycodestyle",
     "pytest",
     "pytest-cov",
     "pytest-pgsql",
-    "freezegun",
-    "pycodestyle",
     "pytest-xdist",
-    "flake8",
-    "flake8-pyproject",
 ]
 
 [tool.flake8]

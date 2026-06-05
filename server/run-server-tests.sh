@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Build the testing image (with xdist)
-docker buildx build --load --target testing -t szuru-server-tests ./server
+docker buildx build --load --target testing -t szuru-server-tests "$(cd "$(dirname "$0")" && pwd)"
 
 # Optional path filter (dir/file/node), default to full suite.
 TARGET="${1:-szurubooru/}"
