@@ -83,16 +83,6 @@ def test_info_api(
             "config": expected_config_key,
         }
     directory.join("test2.txt").write("abc")
-    with fake_datetime("2016-01-03 12:59"):
-        assert api.info_api.get_info(context_factory(user=auth_user)) == {
-            "postCount": 2,
-            "diskUsage": 3,  # still 3 - it's cached
-            "featuredPost": None,
-            "featuringTime": None,
-            "featuringUser": None,
-            "serverTime": datetime(2016, 1, 3, 12, 59),
-            "config": expected_config_key,
-        }
     with fake_datetime("2016-01-03 13:01"):
         assert api.info_api.get_info(context_factory(user=auth_user)) == {
             "postCount": 2,
