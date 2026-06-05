@@ -12,4 +12,6 @@ client/public
 server/**/lib/
 server/**/bin/
 server/**/pyvenv.cfg
+server/.pdm-python
+server/.venv/
 __pycache__/
