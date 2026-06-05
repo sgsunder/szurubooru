@@ -2,6 +2,10 @@
 config.yaml
 .env
 
+# Nix build artifacts
+/result
+/result-*
+
 # Client Development Artifacts
 */*_modules/
 client/public
