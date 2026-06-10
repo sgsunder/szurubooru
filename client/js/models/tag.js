@@ -5,6 +5,22 @@ const uri = require("../util/uri.js");
 const events = require("../events.js");
 const misc = require("../util/misc.js");
 
+const _PLATFORM_SUFFIXES = [
+    {suffix: ".bsky.social",    icon: "fa-paint-brush",     label: "Bluesky",       url: (n) => `https://bsky.app/profile/${n}.bsky.social`},
+    {suffix: ".hentai-foundry", icon: "fa-pencil-alt",      label: "HentaiFoundry", url: (n) => `https://www.hentai-foundry.com/user/${n}/profile`},
+    {suffix: ".artstation",     icon: "fa-paint-brush",     label: "ArtStation",    url: (n) => `https://www.artstation.com/${n}`},
+    {suffix: ".deviantart",     icon: "fa-deviantart",      label: "DeviantArt",    url: (n) => `https://www.deviantart.com/${n}`},
+    {suffix: ".newgrounds",     icon: "fa-bolt",            label: "Newgrounds",    url: (n) => `https://${n}.newgrounds.com/`},
+    {suffix: ".instagram",      icon: "fa-instagram",       label: "Instagram",     url: (n) => `https://www.instagram.com/${n}/`},
+    {suffix: ".pixiv_id",       icon: "fa-paint-brush",     label: "Pixiv",         url: (n) => `https://www.pixiv.net/en/users/${n}`},
+    {suffix: ".patreon",        icon: "fa-patreon",         label: "Patreon",       url: (n) => `https://patreon.com/${n}`},
+    {suffix: ".onlyfans",       icon: "fa-comments-dollar", label: "OnlyFans",      url: (n) => `https://onlyfans.com/${n}`},
+    {suffix: ".pornhub",        icon: "fa-heart",           label: "Pornhub",       url: (n) => `https://www.pornhub.com/users/${n}`},
+    {suffix: ".twitter",        icon: "fa-twitter",         label: "Twitter",       url: (n) => `https://twitter.com/${n}`},
+    {suffix: ".tumblr",         icon: "fa-tumblr",          label: "Tumblr",        url: (n) => `https://${n}.tumblr.com/`},
+    {suffix: ".reddit",         icon: "fa-reddit-alien",    label: "Reddit",        url: (n) => `https://reddit.com/u/${n}`},
+];
+
 class Tag extends events.EventTarget {
     constructor() {
         const TagList = require("./tag_list.js");
@@ -50,6 +66,20 @@ class Tag extends events.EventTarget {
 
     get lastEditTime() {
         return this._lastEditTime;
+    }
+
+    get platformLinks() {
+        const links = [];
+        for (const name of this._names || []) {
+            for (const p of _PLATFORM_SUFFIXES) {
+                if (name.endsWith(p.suffix)) {
+                    const handle = name.slice(0, -p.suffix.length);
+                    links.push({url: p.url(encodeURIComponent(handle)), icon: p.icon, label: p.label});
+                    break;
+                }
+            }
+        }
+        return links;
     }
 
     set names(value) {
