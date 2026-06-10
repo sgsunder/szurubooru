@@ -31,6 +31,17 @@
             --><% } %><!--
         --></ul>
         </section>
+
+        <% if (ctx.tag.platformLinks.length > 0) { %>
+        <section>
+        Links:<br/>
+        <ul><!--
+            --><% for (const link of ctx.tag.platformLinks) { %><!--
+                --><li><a href="<%- link.url %>"><i class="fa <%- link.icon %>"></i> <%- link.label %></a></li><!--
+            --><% } %><!--
+        --></ul>
+        </section>
+        <% } %>
     </section>
 
     <section class='description'>
