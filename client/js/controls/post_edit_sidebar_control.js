@@ -551,8 +551,12 @@ class PostEditSidebarControl extends events.EventTarget {
                 pattern: /https?:\/\/[^/]*\.?bsky\.?[^/]*\/profile\/([^/]+)\/post\/\w+.*/,
                 replacement: "$1.bsky_custom"
             },
-            {   // Tumblr
+            {   // Tumblr (Format A)
                 pattern: /https?:\/\/[^/]*\.?tumblr\.?[^/]*\/([^/]+)\/\d+.*\/?/,
+                replacement: "$1.tumblr"
+            },
+            {   // Tumblr (Format B)
+                pattern: /https?:\/\/([^/]*)\.tumblr\.?[^/]*\/[^/]+\/\d+.*\/?/,
                 replacement: "$1.tumblr"
             },
             {   // Newgrounds
@@ -562,6 +566,10 @@ class PostEditSidebarControl extends events.EventTarget {
             {   // HF
                 pattern: /https?:\/\/[^/]*\.?hentai-foundry\.?[^/]*\/pictures\/user\/([^/]+)\/(\w+).*\/?/,
                 replacement: "$1.hentai-foundry"
+            },
+            {   // Patreon
+                pattern: /https?:\/\/(?:www\.)?patreon\.com\/([^/]+)\/posts\/.*/,
+                replacement: "$1.patreon"
             },
         ];
 
