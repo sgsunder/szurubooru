@@ -15,6 +15,7 @@ const SOURCE_IMPLICATION = "implication";
 const SOURCE_USER_INPUT = "user-input";
 const SOURCE_SUGGESTION = "suggestions";
 const SOURCE_CLIPBOARD = "clipboard";
+const SOURCE_RECOMMENDATION = "recommendation";
 
 const template = views.getTemplate("tag-input");
 
@@ -92,6 +93,12 @@ class TagInputControl extends events.EventTarget {
         this._tagInputNode = editAreaNode.querySelector("input");
         this._suggestionsNode = editAreaNode.querySelector(".tag-suggestions");
         this._tagListNode = editAreaNode.querySelector("ul.compact-tags");
+        this._recommendationsNode = editAreaNode.querySelector(
+            ".tag-recommendations"
+        );
+        this._recommendationsListNode =
+            this._recommendationsNode.querySelector("ul");
+        this._recommendationsRequestId = 0;
 
         this._autoCompleteControl = new TagAutoCompleteControl(
             this._tagInputNode,
@@ -148,6 +155,8 @@ class TagInputControl extends events.EventTarget {
             const listItemNode = this._createListItemNode(tag);
             this._tagListNode.appendChild(listItemNode);
         }
+
+        this._refreshRecommendations();
     }
 
     addTagByText(text, source) {
@@ -218,6 +227,7 @@ class TagInputControl extends events.EventTarget {
                     })
                 );
                 this.dispatchEvent(new CustomEvent("change"));
+                this._refreshRecommendations();
                 return Promise.resolve();
             });
     }
@@ -237,6 +247,7 @@ class TagInputControl extends events.EventTarget {
             })
         );
         this.dispatchEvent(new CustomEvent("change"));
+        this._refreshRecommendations();
     }
 
     _evtInputPaste(e) {
@@ -445,6 +456,75 @@ class TagInputControl extends events.EventTarget {
             listItemNode.appendChild(addLinkNode);
             listNode.appendChild(listItemNode);
         }
+    }
+
+    _refreshRecommendations() {
+        const tagNames = [...this.tags].map((tag) => tag.names[0]);
+        const requestId = ++this._recommendationsRequestId;
+        if (!tagNames.length) {
+            this._recommendationsNode.classList.remove("loading");
+            this._renderRecommendations([]);
+            return;
+        }
+        this._recommendationsNode.classList.add("loading");
+        api.post(
+            uri.formatApiLink("tag-recommendations"),
+            { names: tagNames },
+            {},
+            { noProgress: true }
+        )
+            .then(
+                (response) => Promise.resolve(response.results),
+                (response) => Promise.resolve([])
+            )
+            .then((results) => {
+                // a later add/delete may have started a newer request;
+                // ignore this stale response so results don't render
+                // out of order
+                if (requestId !== this._recommendationsRequestId) {
+                    return;
+                }
+                this._recommendationsNode.classList.remove("loading");
+                this._renderRecommendations(results);
+            });
+    }
+
+    _renderRecommendations(results) {
+        const listNode = this._recommendationsListNode;
+        while (listNode.firstChild) {
+            listNode.removeChild(listNode.firstChild);
+        }
+        let shown = 0;
+        for (let { tag, score } of results) {
+            if (this.tags.isTaggedWith(tag.names[0])) {
+                continue;
+            }
+            shown++;
+
+            const addLinkNode = document.createElement("a");
+            addLinkNode.textContent = tag.names[0];
+            addLinkNode.classList.add("add-tag");
+            if (tag.category) {
+                addLinkNode.classList.add(
+                    misc.makeCssName(tag.category, "tag")
+                );
+            }
+            addLinkNode.setAttribute("href", "");
+            addLinkNode.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.addTagByName(tag.names[0], SOURCE_RECOMMENDATION);
+            });
+
+            const scoreNode = document.createElement("span");
+            scoreNode.classList.add("tag-weight");
+            scoreNode.setAttribute("data-pseudo-content", score.toFixed(1));
+
+            const listItemNode = document.createElement("li");
+            listItemNode.appendChild(addLinkNode);
+            listItemNode.appendChild(scoreNode);
+            listNode.appendChild(listItemNode);
+        }
+        this._recommendationsNode.classList.toggle("empty", shown === 0);
     }
 
     _closeSuggestionsPopup() {

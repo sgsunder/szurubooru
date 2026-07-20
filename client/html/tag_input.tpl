@@ -18,4 +18,9 @@
     </div>
 
     <ul class='compact-tags'></ul>
+
+    <div class='tag-recommendations'>
+        <p class='header'>Recommended tags <i class='fa fa-spinner fa-spin'></i></p>
+        <ul></ul>
+    </div>
 </div>
