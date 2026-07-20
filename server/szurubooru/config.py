@@ -97,6 +97,7 @@ base_config = {
         "tags:view": "anonymous",
         "tags:merge": "moderator",
         "tags:delete": "moderator",
+        "tags:recommendations": "regular",
         "tag_categories:create": "moderator",
         "tag_categories:edit:name": "moderator",
         "tag_categories:edit:color": "moderator",

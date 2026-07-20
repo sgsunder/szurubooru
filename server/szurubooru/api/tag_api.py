@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from szurubooru import db, model, rest, search
+from szurubooru import db, errors, model, rest, search
 from szurubooru.func import auth, serialization, snapshots, tags, versions
 
 _search_executor = search.Executor(search.configs.TagSearchConfig())
@@ -142,3 +142,31 @@ def get_tag_siblings(
             {"tag": _serialize(ctx, sibling), "occurrences": occurrences}
         )
     return {"results": serialized_siblings}
+
+
+@rest.routes.post("/tag-recommendations/?")
+def get_tag_recommendations(
+    ctx: rest.Context, _params: Dict[str, str] = {}
+) -> rest.Response:
+    auth.verify_privilege(ctx.user, "tags:recommendations")
+    names = ctx.get_param_as_string_list("names")
+    if not names:
+        raise errors.ValidationError(
+            "At least one tag name must be given to produce "
+            "recommendations."
+        )
+    limit = ctx.get_param_as_int("limit", default=10, min=1, max=50)
+    input_tags = [
+        tag
+        for tag in (tags.try_get_tag_by_name(name) for name in names)
+        if tag
+    ]
+    if not input_tags:
+        return {"results": []}
+    scored_tags = tags.get_tag_recommendations(input_tags, limit)
+    return {
+        "results": [
+            {"tag": _serialize(ctx, tag), "score": score}
+            for tag, score in scored_tags
+        ]
+    }
