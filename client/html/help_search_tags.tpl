@@ -58,6 +58,14 @@
             <td><code>implication-count</code></td>
             <td>with given number of implications</td>
         </tr>
+        <tr>
+            <td><code>has-implication</code></td>
+            <td>has given tag as an implication (accepts wildcards)</td>
+        </tr>
+        <tr>
+            <td><code>has-suggestion</code></td>
+            <td>has given tag as a suggestion (accepts wildcards)</td>
+        </tr>
     </tbody>
 </table>
 
