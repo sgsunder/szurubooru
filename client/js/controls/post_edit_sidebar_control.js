@@ -551,12 +551,12 @@ class PostEditSidebarControl extends events.EventTarget {
                 pattern: /https?:\/\/[^/]*\.?bsky\.?[^/]*\/profile\/([^/]+)\/post\/\w+.*/,
                 replacement: "$1.bsky_custom"
             },
-            {   // Tumblr (Format A)
-                pattern: /https?:\/\/[^/]*\.?tumblr\.?[^/]*\/([^/]+)\/\d+.*\/?/,
+            {   // Tumblr (subdomain username, e.g. example.tumblr.com)
+                pattern: /https?:\/\/(?!www\.)([^./]+)\.tumblr\.?[^/]*\/[^/]+\/\d+.*\/?/,
                 replacement: "$1.tumblr"
             },
-            {   // Tumblr (Format B)
-                pattern: /https?:\/\/([^/]*)\.tumblr\.?[^/]*\/[^/]+\/\d+.*\/?/,
+            {   // Tumblr (path username, e.g. www.tumblr.com/example)
+                pattern: /https?:\/\/[^/]*\.?tumblr\.?[^/]*\/([^/]+)\/\d+.*\/?/,
                 replacement: "$1.tumblr"
             },
             {   // Newgrounds
