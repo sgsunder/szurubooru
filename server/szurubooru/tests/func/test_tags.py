@@ -286,6 +286,166 @@ def test_get_tag_siblings_used_for_multiple_others(tag_factory, post_factory):
     _assert_tag_siblings(tags.get_tag_siblings(tag3), [("t1", 2), ("t2", 1)])
 
 
+def _assert_tag_recommendations(result, expected_names_and_scores):
+    actual = [(tag.names[0].name, round(score, 5)) for tag, score in result]
+    expected = [
+        (name, round(score, 5)) for name, score in expected_names_and_scores
+    ]
+    assert actual == expected
+
+
+def test_get_tag_recommendations_for_unused_input(tag_factory):
+    tag = tag_factory(names=["tag"])
+    db.session.add(tag)
+    db.session.flush()
+    assert tags.get_tag_recommendations([tag]) == []
+
+
+def test_get_tag_recommendations_no_other_tags(tag_factory, post_factory):
+    tag = tag_factory(names=["tag"])
+    post = post_factory()
+    post.tags = [tag]
+    db.session.add_all([post, tag])
+    db.session.flush()
+    assert tags.get_tag_recommendations([tag]) == []
+
+
+def test_get_tag_recommendations_single_input_tag(tag_factory, post_factory):
+    t1 = tag_factory(names=["t1"])
+    t2 = tag_factory(names=["t2"])
+    t3 = tag_factory(names=["t3"])
+    post1 = post_factory()
+    post1.tags = [t1, t2]
+    post2 = post_factory()
+    post2.tags = [t3]
+    db.session.add_all([post1, post2, t1, t2, t3])
+    db.session.flush()
+    # 2 posts total, t2 co-occurs with t1 once
+    # both t1 and t2 have a post_count of 1 => pmi = log(1 * 2 / (1 * 1)) = log(2)
+    # joint_prob = 1/2, so npmi = log(2) / -log(1/2) = 1.0
+    _assert_tag_recommendations(tags.get_tag_recommendations([t1]), [("t2", 1.0)])
+
+
+def test_get_tag_recommendations_multiple_input_tags_aggregate(
+    tag_factory, post_factory
+):
+    t1 = tag_factory(names=["t1"])
+    t2 = tag_factory(names=["t2"])
+    tag_a = tag_factory(names=["ta"])
+    tag_b = tag_factory(names=["tb"])
+    post1 = post_factory()
+    post1.tags = [t1, t2, tag_a]
+    post2 = post_factory()
+    post2.tags = [t1, tag_b]
+    db.session.add_all([post1, post2, t1, t2, tag_a, tag_b])
+    db.session.flush()
+    # ta co-occurs with t1 once (pmi=log(1*2/(1*2))=0, npmi=0) and with
+    # t2 once (pmi=log(1*2/(1*1))=log(2), joint_prob=1/2, npmi=1.0); tb
+    # co-occurs with t1 only (pmi=0, npmi=0)
+    expected_score_a = 0.0 + 1.0
+    expected_score_b = 0.0
+    _assert_tag_recommendations(
+        tags.get_tag_recommendations([t1, t2]),
+        [("ta", expected_score_a), ("tb", expected_score_b)],
+    )
+
+
+def test_get_tag_recommendations_rare_specific_beats_common_generic(
+    tag_factory, post_factory
+):
+    t1 = tag_factory(names=["t1"])
+    tag_generic = tag_factory(names=["generic"])
+    tag_rare = tag_factory(names=["rare"])
+    post_generic = post_factory()
+    post_generic.tags = [t1, tag_generic]
+    post_rare = post_factory()
+    post_rare.tags = [t1, tag_rare]
+    # tag_generic co-occurs with t1 only once, like tag_rare, but also
+    # shows up on a bunch of unrelated posts, so it shouldn't outrank
+    # tag_rare just because it's more popular overall.
+    solo_posts = []
+    for _ in range(9):
+        solo_post = post_factory()
+        solo_post.tags = [tag_generic]
+        solo_posts.append(solo_post)
+    db.session.add_all(
+        [post_generic, post_rare, t1, tag_generic, tag_rare] + solo_posts
+    )
+    db.session.flush()
+    scores = {
+        tag.names[0].name: score
+        for tag, score in tags.get_tag_recommendations([t1])
+    }
+    assert scores["rare"] > scores["generic"]
+
+
+def test_get_tag_recommendations_excludes_input_tags(
+    tag_factory, post_factory
+):
+    t1 = tag_factory(names=["t1"])
+    t2 = tag_factory(names=["t2"])
+    t3 = tag_factory(names=["t3"])
+    post = post_factory()
+    post.tags = [t1, t2, t3]
+    db.session.add_all([post, t1, t2, t3])
+    db.session.flush()
+    result_names = [
+        tag.names[0].name for tag, _ in tags.get_tag_recommendations([t1, t2])
+    ]
+    assert "t1" not in result_names
+    assert "t2" not in result_names
+    assert "t3" in result_names
+
+
+def test_get_tag_recommendations_respects_limit(tag_factory, post_factory):
+    t1 = tag_factory(names=["t1"])
+    new_objects = [t1]
+    for i, name in enumerate(["c1", "c2", "c3", "c4", "c5"]):
+        candidate = tag_factory(names=[name])
+        co_post = post_factory()
+        co_post.tags = [t1, candidate]
+        new_objects += [candidate, co_post]
+        for _ in range(i):
+            solo_post = post_factory()
+            solo_post.tags = [candidate]
+            new_objects.append(solo_post)
+    db.session.add_all(new_objects)
+    db.session.flush()
+    result = tags.get_tag_recommendations([t1], limit=3)
+    assert [tag.names[0].name for tag, _ in result] == ["c1", "c2", "c3"]
+
+
+def test_get_tag_recommendations_tie_break_by_name(tag_factory, post_factory):
+    t1 = tag_factory(names=["t1"])
+    tag_a = tag_factory(names=["aaa"])
+    tag_b = tag_factory(names=["bbb"])
+    post_a = post_factory()
+    post_a.tags = [t1, tag_a]
+    post_b = post_factory()
+    post_b.tags = [t1, tag_b]
+    db.session.add_all([post_a, post_b, t1, tag_a, tag_b])
+    db.session.flush()
+    result = tags.get_tag_recommendations([t1])
+    assert [tag.names[0].name for tag, _ in result] == ["aaa", "bbb"]
+
+
+def test_get_tag_recommendations_deduplicates_input_tags(
+    tag_factory, post_factory
+):
+    t1 = tag_factory(names=["t1"])
+    t2 = tag_factory(names=["t2"])
+    post = post_factory()
+    post.tags = [t1, t2]
+    db.session.add_all([post, t1, t2])
+    db.session.flush()
+    result_dup = tags.get_tag_recommendations([t1, t1])
+    result_single = tags.get_tag_recommendations([t1])
+    _assert_tag_recommendations(
+        result_dup,
+        [(tag.names[0].name, score) for tag, score in result_single],
+    )
+
+
 def test_delete(tag_factory):
     tag = tag_factory(names=["tag"])
     tag.suggestions = [tag_factory(names=["sug"])]
