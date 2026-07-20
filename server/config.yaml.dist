@@ -122,6 +122,7 @@ privileges:
     'tags:edit:description':        power
     'tags:edit:implications':       power
     'tags:edit:suggestions':        power
+    'tags:recommendations':         regular
     'tags:list':                    regular
     'tags:view':                    anonymous
     'tags:merge':                   moderator
