@@ -32,6 +32,7 @@
         - [Deleting tag](#deleting-tag)
         - [Merging tags](#merging-tags)
         - [Listing tag siblings](#listing-tag-siblings)
+        - [Getting tag recommendations](#getting-tag-recommendations)
     - Posts
         - [Listing posts](#listing-posts)
         - [Creating post](#creating-post)
@@ -721,6 +722,54 @@ data.
     the given tag. `occurrences` field signifies how many times a given sibling
     appears with given tag. Results are sorted by occurrences count and the
     list is truncated to the first 50 elements. Doesn't use paging.
+
+## Getting tag recommendations
+- **Request**
+
+    `POST /tag-recommendations/?`
+
+- **Input**
+
+    ```json5
+    {
+        "names": <names>,
+        "limit": <limit> // optional
+    }
+    ```
+
+- **Output**
+
+    ```json5
+    {
+        "results": [
+            {
+                "tag": <tag>,
+                "score": <score>
+            },
+            {
+                "tag": <tag>,
+                "score": <score>
+            }
+        ]
+    }
+    ```
+    ...where `<tag>` is a [tag resource](#tag).
+
+- **Errors**
+
+    - `names` is empty or missing
+    - one of `names` does not name an existing tag
+    - privileges are too low
+
+- **Description**
+
+    Given a list of tag names already present on a post, suggests
+    additional tags statistically likely to belong alongside them, based
+    on tag co-occurrence across all posts. Suggestions are ranked by a
+    pointwise mutual information style score that rewards tags which
+    co-occur with the given tags more often than their overall popularity
+    would predict, so generically common tags don't dominate the results.
+    `limit` defaults to 10 and is capped at 50. Doesn't use paging.
 
 ## Listing posts
 - **Request**

@@ -2,6 +2,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+
+import numpy as np
 import sqlalchemy as sa
 
 from szurubooru import config, db, errors, model, rest
@@ -55,9 +57,7 @@ def _lower_list(names: List[str]) -> List[str]:
     return [name.lower() for name in names]
 
 
-def _check_name_intersection(
-    names1: List[str], names2: List[str], case_sensitive: bool
-) -> bool:
+def _check_name_intersection(names1: List[str], names2: List[str], case_sensitive: bool) -> bool:
     if not case_sensitive:
         names1 = _lower_list(names1)
         names2 = _lower_list(names2)
@@ -124,21 +124,13 @@ class TagSerializer(serialization.BaseSerializer):
         return self.tag.post_count
 
     def serialize_suggestions(self) -> Any:
-        return [
-            serialize_relation(relation)
-            for relation in sort_tags(self.tag.suggestions)
-        ]
+        return [serialize_relation(relation) for relation in sort_tags(self.tag.suggestions)]
 
     def serialize_implications(self) -> Any:
-        return [
-            serialize_relation(relation)
-            for relation in sort_tags(self.tag.implications)
-        ]
+        return [serialize_relation(relation) for relation in sort_tags(self.tag.implications)]
 
 
-def serialize_tag(
-    tag: model.Tag, options: List[str] = []
-) -> Optional[rest.Response]:
+def serialize_tag(tag: model.Tag, options: List[str] = []) -> Optional[rest.Response]:
     if not tag:
         return None
     return TagSerializer(tag).serialize(options)
@@ -167,12 +159,7 @@ def get_tags_by_names(names: List[str]) -> List[model.Tag]:
     return (
         db.session.query(model.Tag)
         .join(model.TagName)
-        .filter(
-            sa.sql.or_(
-                sa.func.lower(model.TagName.name) == name.lower()
-                for name in names
-            )
-        )
+        .filter(sa.sql.or_(sa.func.lower(model.TagName.name) == name.lower() for name in names))
         .all()
     )
 
@@ -187,9 +174,7 @@ def get_or_create_tags_by_names(
     for name in names:
         found = False
         for existing_tag in existing_tags:
-            if _check_name_intersection(
-                _get_names(existing_tag), [name], False
-            ):
+            if _check_name_intersection(_get_names(existing_tag), [name], False):
                 found = True
                 break
         if not found:
@@ -223,6 +208,100 @@ def get_tag_siblings(tag: model.Tag) -> List[model.Tag]:
     return result
 
 
+def get_tag_recommendations(tags: List[model.Tag], limit: int = 10) -> List[Tuple[model.Tag, float]]:
+    assert tags
+    input_tags = list({tag.tag_id: tag for tag in tags}.values())
+    input_tag_ids = [tag.tag_id for tag in input_tags]
+
+    pt_candidate = sa.orm.aliased(model.PostTag)
+    pt_input = sa.orm.aliased(model.PostTag)
+
+    total_posts_query = sa.select(sa.func.count(model.Post.post_id)).scalar_subquery()
+
+    rows = (
+        db.session.query(
+            pt_candidate.tag_id,
+            pt_input.tag_id,
+            sa.func.count(pt_candidate.post_id),
+            total_posts_query,
+        )
+        .select_from(pt_input)
+        .join(pt_candidate, pt_candidate.post_id == pt_input.post_id)
+        .filter(pt_input.tag_id.in_(input_tag_ids))
+        .filter(pt_candidate.tag_id.notin_(input_tag_ids))
+        .group_by(pt_candidate.tag_id, pt_input.tag_id)
+        .all()
+    )
+    if not rows:
+        return []
+    total_posts = rows[0][3]
+
+    input_post_counts = {tag.tag_id: max(tag.post_count, 1) for tag in input_tags}
+
+    candidate_ids = sorted({row[0] for row in rows})
+    candidate_index = {tid: i for i, tid in enumerate(candidate_ids)}
+    input_index = {tid: i for i, tid in enumerate(input_tag_ids)}
+
+    pt_stats = sa.orm.aliased(model.PostTag)
+    candidate_post_counts = {}  # type: Dict[int, int]
+    candidate_names = {}  # type: Dict[int, str]
+    for tag_id, name, post_count in (
+        db.session.query(
+            model.TagName.tag_id,
+            model.TagName.name,
+            sa.func.count(pt_stats.post_id),
+        )
+        .join(pt_stats, pt_stats.tag_id == model.TagName.tag_id)
+        .filter(model.TagName.tag_id.in_(candidate_ids))
+        .filter(model.TagName.order == 0)
+        .group_by(model.TagName.tag_id, model.TagName.name)
+        .all()
+    ):
+        candidate_post_counts[tag_id] = post_count
+        candidate_names[tag_id] = name
+
+    counts = np.zeros((len(candidate_ids), len(input_tag_ids)))
+    for candidate_id, input_tag_id, co_count, _ in rows:
+        counts[candidate_index[candidate_id], input_index[input_tag_id]] = co_count
+
+    candidate_post_count_col = np.array(
+        [max(candidate_post_counts.get(tid, 1), 1) for tid in candidate_ids]
+    ).reshape(-1, 1)
+    input_post_count_row = np.array([input_post_counts[tid] for tid in input_tag_ids]).reshape(1, -1)
+
+    """
+    Only score input tags a candidate actually co-occurred with:
+    a candidate overlapping 2 of 5 input tags is scored on those 2
+    rather than penalized to -inf for the other 3.
+    """
+    nonzero = counts > 0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pmi = np.log((counts * total_posts) / (candidate_post_count_col * input_post_count_row))
+        """
+        Raw PMI is maximized by tags that co-occurred just once and
+        are otherwise unused, so normalize by joint self-information
+        (NPMI, bounded to [-1, 1]) to favor tags that are actually
+        frequently paired with the input tags rather than merely rare.
+        """
+        joint_prob = counts / total_posts
+        safe_joint_prob = np.where(joint_prob >= 1.0, 0.5, joint_prob)
+        npmi = np.where(joint_prob >= 1.0, 1.0, pmi / -np.log(safe_joint_prob))
+    npmi = np.where(nonzero, npmi, 0.0)
+    scores = npmi.sum(axis=1)
+
+    scored = [
+        (tid, candidate_names.get(tid, ""), float(scores[i])) for i, tid in enumerate(candidate_ids)
+    ]
+    scored.sort(key=lambda item: (-item[2], item[1]))
+    top = scored[:limit]
+
+    top_tags = {
+        tag.tag_id: tag
+        for tag in db.session.query(model.Tag).filter(model.Tag.tag_id.in_([tid for tid, _, _ in top]))
+    }
+    return [(top_tags[tid], score) for tid, _, score in top if tid in top_tags]
+
+
 def delete(source_tag: model.Tag) -> None:
     assert source_tag
     db.session.execute(
@@ -247,20 +326,14 @@ def merge_tags(source_tag: model.Tag, target_tag: model.Tag) -> None:
     def merge_posts(source_tag_id: int, target_tag_id: int) -> None:
         alias1 = model.PostTag
         alias2 = sa.orm.aliased(model.PostTag)
-        update_stmt = sa.sql.expression.update(alias1).where(
-            alias1.tag_id == source_tag_id
-        )
+        update_stmt = sa.sql.expression.update(alias1).where(alias1.tag_id == source_tag_id)
         update_stmt = update_stmt.where(
-            ~sa.exists()
-            .where(alias1.post_id == alias2.post_id)
-            .where(alias2.tag_id == target_tag_id)
+            ~sa.exists().where(alias1.post_id == alias2.post_id).where(alias2.tag_id == target_tag_id)
         )
         update_stmt = update_stmt.values(tag_id=target_tag_id)
         db.session.execute(update_stmt)
 
-    def merge_relations(
-        table: model.Base, source_tag_id: int, target_tag_id: int
-    ) -> None:
+    def merge_relations(table: model.Base, source_tag_id: int, target_tag_id: int) -> None:
         alias1 = table
         alias2 = sa.orm.aliased(table)
         update_stmt = (
@@ -338,9 +411,7 @@ def update_tag_names(tag: model.Tag, names: List[str]) -> None:
         expr = expr & (model.TagName.tag_id != tag.tag_id)
     existing_tags = db.session.query(model.TagName).filter(expr).all()
     if len(existing_tags):
-        raise TagAlreadyExistsError(
-            "One of names is already used by another tag."
-        )
+        raise TagAlreadyExistsError("One of names is already used by another tag.")
 
     # remove unwanted items
     for tag_name in tag.names[:]:
