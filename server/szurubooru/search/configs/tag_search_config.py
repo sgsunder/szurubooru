@@ -96,6 +96,32 @@ class TagSearchConfig(BaseSearchConfig):
                     ["implication-count"],
                     search_util.create_num_filter(model.Tag.implication_count),
                 ),
+                (
+                    ["has-implication"],
+                    search_util.create_subquery_filter(
+                        model.Tag.tag_id,
+                        model.TagImplication.parent_id,
+                        model.TagName.name,
+                        search_util.create_str_filter,
+                        lambda subquery: subquery.join(
+                            model.Tag,
+                            model.Tag.tag_id == model.TagImplication.child_id,
+                        ).join(model.TagName),
+                    ),
+                ),
+                (
+                    ["has-suggestion"],
+                    search_util.create_subquery_filter(
+                        model.Tag.tag_id,
+                        model.TagSuggestion.parent_id,
+                        model.TagName.name,
+                        search_util.create_str_filter,
+                        lambda subquery: subquery.join(
+                            model.Tag,
+                            model.Tag.tag_id == model.TagSuggestion.child_id,
+                        ).join(model.TagName),
+                    ),
+                ),
             ]
         )
 

@@ -373,6 +373,56 @@ def test_filter_by_implication_count(
 @pytest.mark.parametrize(
     "input,expected_tag_names",
     [
+        ("has-implication:sug1", ["t1"]),
+        ("has-implication:sug3", ["t2"]),
+        ("has-implication:nope", []),
+        ("-has-implication:sug1", ["sug1", "sug2", "sug3", "t2"]),
+    ],
+)
+def test_filter_by_has_implication(
+    verify_unpaged, tag_factory, input, expected_tag_names
+):
+    sug1 = tag_factory(names=["sug1"])
+    sug2 = tag_factory(names=["sug2"])
+    sug3 = tag_factory(names=["sug3"])
+    tag1 = tag_factory(names=["t1"])
+    tag2 = tag_factory(names=["t2"])
+    db.session.add_all([sug1, sug3, tag2, sug2, tag1])
+    tag1.implications.append(sug1)
+    tag1.implications.append(sug2)
+    tag2.implications.append(sug3)
+    db.session.flush()
+    verify_unpaged(input, expected_tag_names)
+
+
+@pytest.mark.parametrize(
+    "input,expected_tag_names",
+    [
+        ("has-suggestion:sug1", ["t1"]),
+        ("has-suggestion:sug3", ["t2"]),
+        ("has-suggestion:nope", []),
+        ("-has-suggestion:sug1", ["sug1", "sug2", "sug3", "t2"]),
+    ],
+)
+def test_filter_by_has_suggestion(
+    verify_unpaged, tag_factory, input, expected_tag_names
+):
+    sug1 = tag_factory(names=["sug1"])
+    sug2 = tag_factory(names=["sug2"])
+    sug3 = tag_factory(names=["sug3"])
+    tag1 = tag_factory(names=["t1"])
+    tag2 = tag_factory(names=["t2"])
+    db.session.add_all([sug1, sug3, tag2, sug2, tag1])
+    tag1.suggestions.append(sug1)
+    tag1.suggestions.append(sug2)
+    tag2.suggestions.append(sug3)
+    db.session.flush()
+    verify_unpaged(input, expected_tag_names)
+
+
+@pytest.mark.parametrize(
+    "input,expected_tag_names",
+    [
         ("", ["t1", "t2"]),
         ("sort:name", ["t1", "t2"]),
         ("-sort:name", ["t2", "t1"]),
