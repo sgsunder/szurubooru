@@ -18,6 +18,7 @@ def inject_config(config_injector):
                 "tag_categories:edit:name": model.User.RANK_REGULAR,
                 "tag_categories:edit:color": model.User.RANK_REGULAR,
                 "tag_categories:edit:order": model.User.RANK_REGULAR,
+                "tag_categories:edit:weights": model.User.RANK_REGULAR,
                 "tag_categories:set_default": model.User.RANK_REGULAR,
             },
         }
@@ -87,11 +88,32 @@ def test_trying_to_update_non_existing(user_factory, context_factory):
         )
 
 
+def test_updating_recommendation_weight(
+    user_factory, tag_category_factory, context_factory
+):
+    category = tag_category_factory(name="name", color="black")
+    db.session.add(category)
+    db.session.flush()
+    with patch("szurubooru.func.tag_categories.serialize_category"), patch(
+        "szurubooru.func.snapshots.modify"
+    ):
+        tag_categories.serialize_category.return_value = "serialized category"
+        api.tag_category_api.update_tag_category(
+            context_factory(
+                params={"weights": 2.5, "version": 1},
+                user=user_factory(rank=model.User.RANK_REGULAR),
+            ),
+            {"category_name": "name"},
+        )
+        assert category.recommendation_weight == 2.5
+
+
 @pytest.mark.parametrize(
     "params",
     [
         {"name": "whatever"},
         {"color": "whatever"},
+        {"weights": 2.5},
     ],
 )
 def test_trying_to_update_without_privileges(

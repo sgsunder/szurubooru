@@ -10,11 +10,13 @@ class TagCategory extends events.EventTarget {
         this._name = "";
         this._color = "#000000";
         this._order = 1;
+        this._weights = 1.0;
         this._tagCount = 0;
         this._isDefault = false;
         this._origName = null;
         this._origColor = null;
         this._origOrder = null;
+        this._origWeights = null;
     }
 
     get name() {
@@ -27,6 +29,10 @@ class TagCategory extends events.EventTarget {
 
     get order() {
         return this._order;
+    }
+
+    get weights() {
+        return this._weights;
     }
 
     get tagCount() {
@@ -53,6 +59,10 @@ class TagCategory extends events.EventTarget {
         this._order = value;
     }
 
+    set weights(value) {
+        this._weights = value;
+    }
+
     static fromResponse(response) {
         const ret = new TagCategory();
         ret._updateFromResponse(response);
@@ -70,6 +80,9 @@ class TagCategory extends events.EventTarget {
         }
         if (this.order !== this._origOrder) {
             detail.order = this.order;
+        }
+        if (this.weights !== this._origWeights) {
+            detail.weights = this.weights;
         }
 
         if (!Object.keys(detail).length) {
@@ -118,11 +131,13 @@ class TagCategory extends events.EventTarget {
         this._name = response.name;
         this._color = response.color;
         this._order = response.order;
+        this._weights = response.weights;
         this._isDefault = response.default;
         this._tagCount = response.usages;
         this._origName = this.name;
         this._origColor = this.color;
         this._origOrder = this.order;
+        this._origWeights = this.weights;
     }
 }
 

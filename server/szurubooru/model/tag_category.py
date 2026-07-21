@@ -17,6 +17,9 @@ class TagCategory(Base):
     )
     default = sa.Column("default", sa.Boolean, nullable=False, default=False)
     order = sa.Column("order", sa.Integer, nullable=False, default=1)
+    recommendation_weight = sa.Column(
+        "recommendation_weight", sa.Float, nullable=False, default=1.0
+    )
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name = name
