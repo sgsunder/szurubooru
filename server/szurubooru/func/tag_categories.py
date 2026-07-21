@@ -29,6 +29,10 @@ class InvalidTagCategoryColorError(errors.ValidationError):
     pass
 
 
+class InvalidTagCategoryRecommendationWeightError(errors.ValidationError):
+    pass
+
+
 def _verify_name_validity(name: str) -> None:
     name_regex = config.config["tag_category_name_regex"]
     if not re.fullmatch(name_regex, name):
@@ -49,6 +53,7 @@ class TagCategorySerializer(serialization.BaseSerializer):
             "usages": self.serialize_usages,
             "default": self.serialize_default,
             "order": self.serialize_order,
+            "weights": self.serialize_recommendation_weight,
         }
 
     def serialize_name(self) -> Any:
@@ -59,6 +64,9 @@ class TagCategorySerializer(serialization.BaseSerializer):
 
     def serialize_color(self) -> Any:
         return self.category.color
+
+    def serialize_recommendation_weight(self) -> Any:
+        return self.category.recommendation_weight
 
     def serialize_usages(self) -> Any:
         return self.category.tag_count
@@ -125,6 +133,17 @@ def update_category_color(category: model.TagCategory, color: str) -> None:
 def update_category_order(category: model.TagCategory, order: int) -> None:
     assert category
     category.order = order
+
+
+def update_category_recommendation_weight(
+    category: model.TagCategory, weight: float
+) -> None:
+    assert category
+    if weight < 0:
+        raise InvalidTagCategoryRecommendationWeightError(
+            "Recommendation weight cannot be negative."
+        )
+    category.recommendation_weight = weight
 
 
 def try_get_category_by_name(

@@ -109,6 +109,13 @@ class TagCategoriesView extends events.EventTarget {
             );
         }
 
+        const weightsInput = rowNode.querySelector(".weights input");
+        if (weightsInput) {
+            weightsInput.addEventListener("change", (e) =>
+                this._evtWeightsChange(e, rowNode)
+            );
+        }
+
         const removeLinkNode = rowNode.querySelector(".remove a");
         if (removeLinkNode) {
             removeLinkNode.addEventListener("click", (e) =>
@@ -158,6 +165,10 @@ class TagCategoriesView extends events.EventTarget {
 
     _evtOrderChange(e, rowNode) {
         rowNode._tagCategory.order = e.target.value;
+    }
+
+    _evtWeightsChange(e, rowNode) {
+        rowNode._tagCategory.weights = e.target.value;
     }
 
     _evtDeleteButtonClick(e, rowNode, link) {

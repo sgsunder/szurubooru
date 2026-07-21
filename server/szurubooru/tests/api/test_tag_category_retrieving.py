@@ -48,6 +48,7 @@ def test_retrieving_single(
         "default": False,
         "order": 1,
         "version": 1,
+        "weights": 1.0,
     }
 
 

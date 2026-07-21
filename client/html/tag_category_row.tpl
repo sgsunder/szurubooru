@@ -24,6 +24,13 @@
             <%- ctx.tagCategory.order %>
         <% } %>
     </td>
+    <td class='weights'>
+        <% if (ctx.canEditWeights) { %>
+            <%= ctx.makeNumericInput({value: ctx.tagCategory.weights, step: 'any', min: 0}) %>
+        <% } else { %>
+            <%- ctx.tagCategory.weights %>
+        <% } %>
+    </td>
     <td class='usages'>
         <% if (ctx.tagCategory.name) { %>
             <a href='<%- ctx.formatClientLink('tags', {query: 'category:' + ctx.tagCategory.name}) %>'>

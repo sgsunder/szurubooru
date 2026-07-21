@@ -27,6 +27,7 @@ class TagCategoriesController {
                     canEditName: api.hasPrivilege("tagCategories:edit:name"),
                     canEditColor: api.hasPrivilege("tagCategories:edit:color"),
                     canEditOrder: api.hasPrivilege("tagCategories:edit:order"),
+                    canEditWeights: api.hasPrivilege("tagCategories:edit:weights"),
                     canDelete: api.hasPrivilege("tagCategories:delete"),
                     canCreate: api.hasPrivilege("tagCategories:create"),
                     canSetDefault: api.hasPrivilege(
