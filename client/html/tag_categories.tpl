@@ -8,6 +8,7 @@
                         <th class='name'>Category name</th>
                         <th class='color'>CSS color</th>
                         <th class='order'>Order</th>
+                        <th class='weights'>Rec. weight</th>
                         <th class='usages'>Usages</th>
                     </tr>
                 </thead>
@@ -22,7 +23,7 @@
 
         <div class='messages'></div>
 
-        <% if (ctx.canCreate || ctx.canEditName || ctx.canEditColor || ctx.canEditOrder || ctx.canDelete) { %>
+        <% if (ctx.canCreate || ctx.canEditName || ctx.canEditColor || ctx.canEditOrder || ctx.canEditWeights || ctx.canDelete) { %>
             <div class='buttons'>
                 <input type='submit' class='save' value='Save changes'>
             </div>

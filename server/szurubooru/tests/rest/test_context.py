@@ -86,6 +86,29 @@ def test_getting_int_parameter():
         ctx.get_param_as_int("key", max=49)
 
 
+def test_getting_float_parameter():
+    ctx = rest.Context(
+        env={},
+        method=None,
+        url=None,
+        params={"key": "0.5", "err": "invalid", "list": [1, 2, 3]},
+    )
+    assert ctx.get_param_as_float("key") == 0.5
+    with pytest.raises(errors.ValidationError):
+        ctx.get_param_as_float("list")
+    with pytest.raises(errors.ValidationError):
+        ctx.get_param_as_float("non-existing")
+    assert ctx.get_param_as_float("non-existing", default=5) == 5
+    with pytest.raises(errors.ValidationError):
+        ctx.get_param_as_float("err")
+    with pytest.raises(errors.ValidationError):
+        assert ctx.get_param_as_float("key", min=0.5) == 0.5
+        ctx.get_param_as_float("key", min=0.6)
+    with pytest.raises(errors.ValidationError):
+        assert ctx.get_param_as_float("key", max=0.5) == 0.5
+        ctx.get_param_as_float("key", max=0.4)
+
+
 def test_getting_bool_parameter():
     def test(value):
         ctx = rest.Context(

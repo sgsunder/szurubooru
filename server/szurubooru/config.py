@@ -102,6 +102,7 @@ base_config = {
         "tag_categories:edit:name": "moderator",
         "tag_categories:edit:color": "moderator",
         "tag_categories:edit:order": "moderator",
+        "tag_categories:edit:weights": "moderator",
         "tag_categories:list": "anonymous",
         "tag_categories:view": "anonymous",
         "tag_categories:delete": "moderator",

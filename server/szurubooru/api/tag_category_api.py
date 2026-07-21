@@ -79,6 +79,11 @@ def update_tag_category(
         tag_categories.update_category_order(
             category, ctx.get_param_as_int("order")
         )
+    if ctx.has_param("weights"):
+        auth.verify_privilege(ctx.user, "tag_categories:edit:weights")
+        tag_categories.update_category_recommendation_weight(
+            category, ctx.get_param_as_float("weights", min=0)
+        )
     ctx.session.flush()
     snapshots.modify(category, ctx.user)
     ctx.session.commit()

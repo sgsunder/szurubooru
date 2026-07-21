@@ -267,20 +267,36 @@ def get_tag_recommendations(
     pt_stats = sa.orm.aliased(model.PostTag)
     candidate_post_counts = {}  # type: Dict[int, int]
     candidate_names = {}  # type: Dict[int, str]
-    for tag_id, name, post_count in (
+    candidate_categories = {}  # type: Dict[int, int]
+    category_weights = {}  # type: Dict[int, float]
+    for tag_id, name, category_id, weight, post_count in (
         db.session.query(
             model.TagName.tag_id,
             model.TagName.name,
+            model.Tag.category_id,
+            model.TagCategory.recommendation_weight,
             sa.func.count(pt_stats.post_id),
         )
         .join(pt_stats, pt_stats.tag_id == model.TagName.tag_id)
+        .join(model.Tag, model.Tag.tag_id == model.TagName.tag_id)
+        .join(
+            model.TagCategory,
+            model.TagCategory.tag_category_id == model.Tag.category_id,
+        )
         .filter(model.TagName.tag_id.in_(candidate_ids))
         .filter(model.TagName.order == 0)
-        .group_by(model.TagName.tag_id, model.TagName.name)
+        .group_by(
+            model.TagName.tag_id,
+            model.TagName.name,
+            model.Tag.category_id,
+            model.TagCategory.recommendation_weight,
+        )
         .all()
     ):
         candidate_post_counts[tag_id] = post_count
         candidate_names[tag_id] = name
+        candidate_categories[tag_id] = category_id
+        category_weights[category_id] = weight
 
     counts = np.zeros((len(candidate_ids), len(input_tag_ids)))
     for candidate_id, input_tag_id, co_count, _ in rows:
@@ -322,6 +338,36 @@ def get_tag_recommendations(
         )
     npmi = np.where(nonzero, npmi, 0.0)
     scores = npmi.sum(axis=1)
+
+    """
+    Category weight is applied as gamma correction
+
+    (output = input ** gamma, the same curve used for image gamma correction)
+
+    on the mean NPMI per matched input tag, rather than as a flat
+    multiplier on the score.
+
+    A weight of 1.0 (the default) is the identity transform
+    (gamma=1, score unchanged). Weights above 1.0 push scores toward
+    the maximum regardless of match strength, so that category surfaces
+    more often; weights below 1.0 push scores toward zero, but only
+    mildly for a near-perfect match, so a very strong co-occurrence can
+    still break through a low-weighted category instead of being
+    flattened along with the weak ones.
+
+    gamma = 1 / sqrt(weight)
+    """
+    overlap_counts = nonzero.sum(axis=1)
+    mean_npmi = np.clip(scores / overlap_counts, 0.0, 1.0)
+    weight_col = np.array(
+        [
+            category_weights.get(candidate_categories.get(tid), 1.0)
+            for tid in candidate_ids
+        ]
+    )
+    with np.errstate(divide="ignore", invalid="ignore"):
+        gamma = 1.0 / np.sqrt(weight_col)
+        scores = np.power(mean_npmi, gamma) * overlap_counts
 
     scored = [
         (tid, candidate_names.get(tid, ""), float(scores[i]))

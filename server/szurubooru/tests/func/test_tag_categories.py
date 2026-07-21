@@ -31,6 +31,7 @@ def test_serialize_category(tag_category_factory, tag_factory):
         "version": 1,
         "order": 1,
         "usages": 2,
+        "weights": 1.0,
     }
 
 
@@ -142,6 +143,23 @@ def test_update_category_color(attempt, tag_category_factory):
     category = tag_category_factory()
     tag_categories.update_category_color(category, attempt)
     assert category.color == attempt
+
+
+def test_update_category_recommendation_weight_with_negative_value(
+    tag_category_factory,
+):
+    category = tag_category_factory()
+    with pytest.raises(
+        tag_categories.InvalidTagCategoryRecommendationWeightError
+    ):
+        tag_categories.update_category_recommendation_weight(category, -1)
+
+
+@pytest.mark.parametrize("weight", [0, 0.5, 1.0, 3.0])
+def test_update_category_recommendation_weight(weight, tag_category_factory):
+    category = tag_category_factory()
+    tag_categories.update_category_recommendation_weight(category, weight)
+    assert category.recommendation_weight == weight
 
 
 def test_try_get_category_by_name(tag_category_factory):
