@@ -446,6 +446,88 @@ def test_get_tag_recommendations_deduplicates_input_tags(
     )
 
 
+@pytest.mark.parametrize(
+    "weight, expected_score",
+    [
+        (1.0, 0.5),  # default: gamma=1, identity transform
+        (4.0, 0.5**0.5),  # weight>1: gamma=0.5, pulls toward the max
+        (0.25, 0.5**2),  # weight<1: gamma=2, pulls toward zero
+    ],
+)
+def test_get_tag_recommendations_category_weight_is_configurable(
+    weight, expected_score, tag_factory, tag_category_factory, post_factory
+):
+    category = tag_category_factory(
+        name="weighted", recommendation_weight=weight
+    )
+    db.session.add(category)
+    t1 = tag_factory(names=["t1"])
+    candidate = tag_factory(names=["candidate"], category=category)
+    post_a = post_factory()
+    post_a.tags = [t1, candidate]
+    post_b = post_factory()
+    post_b.tags = [candidate]
+    post_c = post_factory()
+    post_d = post_factory()
+    db.session.add_all(
+        [post_a, post_b, post_c, post_d, t1, candidate]
+    )
+    db.session.flush()
+    # t1 usages=1, candidate usages=2, co=1, total_posts=4:
+    # pmi = log(1*4/(2*1)) = log(2); joint_prob = 1/4
+    # npmi = log(2) / -log(1/4) = 0.5 (the unweighted score)
+    _assert_tag_recommendations(
+        tags.get_tag_recommendations([t1]),
+        [("candidate", expected_score)],
+    )
+
+
+def test_get_tag_recommendations_strong_signal_survives_low_weight(
+    tag_factory, tag_category_factory, post_factory
+):
+    # weight=0.25 => gamma=2: a moderate match (npmi=0.5) is crushed to
+    # 0.5**2=0.25, but a near-perfect match (npmi=1.0) barely moves
+    # (1.0**2=1.0)
+    #
+    # a strong enough signal still breaks through a
+    # low-weighted category instead of being flattened along with weak
+    # matches in the same category.
+    category = tag_category_factory(name="low", recommendation_weight=0.25)
+    db.session.add(category)
+    t_strong = tag_factory(names=["t_strong"])
+    t_moderate = tag_factory(names=["t_moderate"])
+    candidate_strong = tag_factory(
+        names=["candidate_strong"], category=category
+    )
+    candidate_moderate = tag_factory(
+        names=["candidate_moderate"], category=category
+    )
+    post_s = post_factory()
+    post_s.tags = [t_strong, candidate_strong]
+    post_m = post_factory()
+    post_m.tags = [t_moderate, candidate_moderate]
+    post_m2 = post_factory()
+    post_m2.tags = [candidate_moderate]
+    post_f = post_factory()
+    db.session.add_all(
+        [
+            post_s,
+            post_m,
+            post_m2,
+            post_f,
+            t_strong,
+            t_moderate,
+            candidate_strong,
+            candidate_moderate,
+        ]
+    )
+    db.session.flush()
+    _assert_tag_recommendations(
+        tags.get_tag_recommendations([t_strong, t_moderate]),
+        [("candidate_strong", 1.0), ("candidate_moderate", 0.25)],
+    )
+
+
 def test_delete(tag_factory):
     tag = tag_factory(names=["tag"])
     tag.suggestions = [tag_factory(names=["sug"])]
