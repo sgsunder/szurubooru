@@ -28,7 +28,8 @@ RUN pip3 install --no-cache-dir --disable-pip-version-check --break-system-packa
         "alembic>=0.8.5" \
         "coloredlogs==5.0" \
         yt-dlp \
-        "pillow-heif>=1.0.0" \
+        # pillow-heif v1.5.0 breaks linux/arm/v7 support
+        "pillow-heif>=1.0.0,<1.5.0" \
         "pillow-avif-plugin>=1.4.6"
 RUN apk --no-cache del py3-pip
 
