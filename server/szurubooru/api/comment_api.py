@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from szurubooru import model, rest, search
@@ -48,7 +48,9 @@ def create_comment(
     text = ctx.get_param_as_string("text")
     post_id = ctx.get_param_as_int("postId")
     post = posts.get_post_by_id(post_id)
-    comment = comments.create_comment(ctx.user if ctx.user.name else None, post, text)
+    comment = comments.create_comment(
+        ctx.user if ctx.user.name else None, post, text
+    )
     ctx.session.add(comment)
     ctx.session.commit()
     return _serialize(ctx, comment)
@@ -70,7 +72,7 @@ def update_comment(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
     text = ctx.get_param_as_string("text")
     auth.verify_privilege(ctx.user, "comments:edit:%s" % infix)
     comments.update_comment_text(comment, text)
-    comment.last_edit_time = datetime.utcnow()
+    comment.last_edit_time = datetime.now(timezone.utc).replace(tzinfo=None)
     ctx.session.commit()
     return _serialize(ctx, comment)
 

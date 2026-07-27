@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from szurubooru import config, rest
@@ -14,7 +14,7 @@ _cache_computing: bool = False
 def _get_disk_usage() -> int:
     global _cache_time, _cache_result, _cache_computing
     threshold = timedelta(hours=48)
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if not _cache_computing and (
         not _cache_time or now - _cache_time > threshold
     ):
@@ -34,7 +34,7 @@ def _compute_disk_usage() -> None:
             except FileNotFoundError:
                 pass
     _cache_result = total_size
-    _cache_time = datetime.utcnow()
+    _cache_time = datetime.now(timezone.utc).replace(tzinfo=None)
     _cache_computing = False
 
 
@@ -44,7 +44,7 @@ def get_info(ctx: rest.Context, _params: Dict[str, str] = {}) -> rest.Response:
     ret = {
         "postCount": posts.get_post_count(),
         "diskUsage": _get_disk_usage(),
-        "serverTime": datetime.utcnow(),
+        "serverTime": datetime.now(timezone.utc).replace(tzinfo=None),
         "config": {
             "name": config.config["name"],
             "userNameRegex": config.config["user_name_regex"],

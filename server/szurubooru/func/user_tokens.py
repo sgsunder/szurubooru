@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 import pytz
@@ -98,8 +98,9 @@ def create_user_token(user: model.User, enabled: bool) -> model.UserToken:
     user_token.user = user
     user_token.token = auth.generate_authorization_token()
     user_token.enabled = enabled
-    user_token.creation_time = datetime.utcnow()
-    user_token.last_usage_time = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    user_token.creation_time = now
+    user_token.last_usage_time = now
     return user_token
 
 
@@ -113,7 +114,7 @@ def update_user_token_enabled(
 
 def update_user_token_edit_time(user_token: model.UserToken) -> None:
     assert user_token
-    user_token.last_edit_time = datetime.utcnow()
+    user_token.last_edit_time = datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def update_user_token_expiration_time(
@@ -123,7 +124,7 @@ def update_user_token_expiration_time(
     try:
         expiration_time = rfc3339_parser.parse(expiration_time_str, utc=True)
         expiration_time = expiration_time.astimezone(pytz.UTC)
-        if expiration_time < datetime.utcnow().replace(tzinfo=pytz.UTC):
+        if expiration_time < datetime.now(timezone.utc):
             raise InvalidExpirationError(
                 "Expiration cannot happen in the past"
             )
@@ -147,4 +148,6 @@ def update_user_token_note(user_token: model.UserToken, note: str) -> None:
 
 def bump_usage_time(user_token: model.UserToken) -> None:
     assert user_token
-    user_token.last_usage_time = datetime.utcnow()
+    user_token.last_usage_time = datetime.now(timezone.utc).replace(
+        tzinfo=None
+    )

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
 import sqlalchemy as sa
@@ -111,7 +111,7 @@ def _create(
         auth_user = None
 
     snapshot = model.Snapshot()
-    snapshot.creation_time = datetime.utcnow()
+    snapshot.creation_time = datetime.now(timezone.utc).replace(tzinfo=None)
     snapshot.operation = operation
     snapshot.resource_type = resource_type
     snapshot.resource_pkey = resource_pkey
@@ -136,7 +136,9 @@ def modify(entity: model.Base, auth_user: Optional[model.User]) -> None:
     snapshot_factory = _snapshot_factories[snapshot.resource_type]
 
     detached_session = sa.orm.sessionmaker(bind=db.session.get_bind())()
-    detached_entity = detached_session.get(type(entity), snapshot.resource_pkey)
+    detached_entity = detached_session.get(
+        type(entity), snapshot.resource_pkey
+    )
     assert detached_entity, "Entity not found in DB, have you committed it?"
     detached_snapshot = snapshot_factory(detached_entity)
     detached_session.close()

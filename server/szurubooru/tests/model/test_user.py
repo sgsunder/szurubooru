@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from szurubooru import db, model
 
@@ -63,10 +63,11 @@ def test_favorite_count(user_factory, post_factory):
     assert user1.comment_count == 0
     post1 = post_factory()
     post2 = post_factory()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.add_all(
         [
-            model.PostFavorite(post=post1, time=datetime.utcnow(), user=user1),
-            model.PostFavorite(post=post2, time=datetime.utcnow(), user=user2),
+            model.PostFavorite(post=post1, time=now, user=user1),
+            model.PostFavorite(post=post2, time=now, user=user2),
         ]
     )
     db.session.flush()
@@ -83,14 +84,11 @@ def test_liked_post_count(user_factory, post_factory):
     assert user1.disliked_post_count == 0
     post1 = post_factory()
     post2 = post_factory()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.add_all(
         [
-            model.PostScore(
-                post=post1, time=datetime.utcnow(), user=user1, score=1
-            ),
-            model.PostScore(
-                post=post2, time=datetime.utcnow(), user=user2, score=1
-            ),
+            model.PostScore(post=post1, time=now, user=user1, score=1),
+            model.PostScore(post=post2, time=now, user=user2, score=1),
         ]
     )
     db.session.flush()
@@ -108,14 +106,11 @@ def test_disliked_post_count(user_factory, post_factory):
     assert user1.disliked_post_count == 0
     post1 = post_factory()
     post2 = post_factory()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.add_all(
         [
-            model.PostScore(
-                post=post1, time=datetime.utcnow(), user=user1, score=-1
-            ),
-            model.PostScore(
-                post=post2, time=datetime.utcnow(), user=user2, score=1
-            ),
+            model.PostScore(post=post1, time=now, user=user1, score=-1),
+            model.PostScore(post=post2, time=now, user=user2, score=1),
         ]
     )
     db.session.flush()

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
@@ -263,7 +263,7 @@ def create_pool(
     names: List[str], category_name: str, post_ids: List[int]
 ) -> model.Pool:
     pool = model.Pool()
-    pool.creation_time = datetime.utcnow()
+    pool.creation_time = datetime.now(timezone.utc).replace(tzinfo=None)
     update_pool_names(pool, names)
     update_pool_category_name(pool, category_name)
     update_pool_posts(pool, post_ids)

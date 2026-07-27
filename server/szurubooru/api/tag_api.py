@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from szurubooru import db, model, rest, search
@@ -93,7 +93,7 @@ def update_tag(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
         implications = ctx.get_param_as_string_list("implications")
         _create_if_needed(implications, ctx.user)
         tags.update_tag_implications(tag, implications)
-    tag.last_edit_time = datetime.utcnow()
+    tag.last_edit_time = datetime.now(timezone.utc).replace(tzinfo=None)
     ctx.session.flush()
     snapshots.modify(tag, ctx.user)
     ctx.session.commit()

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import sqlalchemy as sa
@@ -224,7 +224,7 @@ def create_user(name: str, password: str, email: str) -> model.User:
         user.rank = util.flip(auth.RANK_MAP)[config.config["default_rank"]]
     else:
         user.rank = model.User.RANK_ADMINISTRATOR
-    user.creation_time = datetime.utcnow()
+    user.creation_time = datetime.now(timezone.utc).replace(tzinfo=None)
     user.avatar_style = model.User.AVATAR_GRAVATAR
     return user
 
@@ -324,7 +324,7 @@ def update_user_avatar(
 
 def bump_user_login_time(user: model.User) -> None:
     assert user
-    user.last_login_time = datetime.utcnow()
+    user.last_login_time = datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def reset_user_password(user: model.User) -> str:
