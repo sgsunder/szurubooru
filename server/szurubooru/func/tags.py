@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
@@ -308,7 +308,7 @@ def create_tag(
     implications: List[str],
 ) -> model.Tag:
     tag = model.Tag()
-    tag.creation_time = datetime.utcnow()
+    tag.creation_time = datetime.now(timezone.utc).replace(tzinfo=None)
     update_tag_names(tag, names)
     update_tag_category_name(tag, category_name)
     update_tag_suggestions(tag, suggestions)

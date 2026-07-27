@@ -1,6 +1,6 @@
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -109,7 +109,9 @@ def test_update_user_token_expiration_time(user_token_factory):
     user_token = user_token_factory()
     assert user_token.expiration_time is None
     expiration_time_str = (
-        (datetime.utcnow() + timedelta(days=1)).replace(tzinfo=pytz.utc)
+        (datetime.now(timezone.utc) + timedelta(days=1)).replace(
+            tzinfo=pytz.utc
+        )
     ).isoformat()
     user_tokens.update_user_token_expiration_time(
         user_token, expiration_time_str
@@ -122,7 +124,9 @@ def test_update_user_token_expiration_time_in_past(user_token_factory):
     user_token = user_token_factory()
     assert user_token.expiration_time is None
     expiration_time_str = (
-        (datetime.utcnow() - timedelta(days=1)).replace(tzinfo=pytz.utc)
+        (datetime.now(timezone.utc) - timedelta(days=1)).replace(
+            tzinfo=pytz.utc
+        )
     ).isoformat()
     with pytest.raises(
         user_tokens.InvalidExpirationError,

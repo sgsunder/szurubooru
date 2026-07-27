@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from szurubooru import db, errors, model, rest, search
@@ -165,7 +165,7 @@ def update_post(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
     if ctx.has_file("thumbnail"):
         auth.verify_privilege(ctx.user, "posts:edit:thumbnail")
         posts.update_post_thumbnail(post, ctx.get_file("thumbnail"))
-    post.last_edit_time = datetime.utcnow()
+    post.last_edit_time = datetime.now(timezone.utc).replace(tzinfo=None)
     ctx.session.flush()
     snapshots.modify(post, ctx.user)
     ctx.session.commit()
