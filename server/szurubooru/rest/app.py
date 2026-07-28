@@ -1,9 +1,9 @@
-import cgi
+import email
 import json
 import re
 import urllib.parse
 from datetime import datetime
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from szurubooru import db
 from szurubooru.func import util
@@ -31,6 +31,28 @@ def _get_headers(env: Dict[str, Any]) -> Dict[str, str]:
     return headers
 
 
+def _parse_multipart(
+    body: bytes, content_type: str
+) -> Tuple[Optional[bytes], Dict[str, bytes]]:
+    message = email.message_from_bytes(
+        b"Content-Type: "
+        + content_type.encode("utf-8")
+        + b"\r\n\r\n"
+        + body
+    )
+    files = {}  # type: Dict[str, bytes]
+    metadata = None
+    if message.is_multipart():
+        for part in message.get_payload():
+            name = part.get_param("name", header="Content-Disposition")
+            if name is None:
+                continue
+            files[name] = part.get_payload(decode=True)
+            if name == "metadata":
+                metadata = files[name]
+    return metadata, files
+
+
 def _create_context(env: Dict[str, Any]) -> context.Context:
     method = env["REQUEST_METHOD"]
     path = "/" + env["PATH_INFO"].lstrip("/")
@@ -41,14 +63,17 @@ def _create_context(env: Dict[str, Any]) -> context.Context:
     params = dict(urllib.parse.parse_qsl(env.get("QUERY_STRING", "")))
 
     if "multipart" in env.get("CONTENT_TYPE", ""):
-        form = cgi.FieldStorage(fp=env["wsgi.input"], environ=env)
-        if not form.list:
+        content_length = int(env.get("CONTENT_LENGTH") or 0)
+        raw_body = (
+            env["wsgi.input"].read(content_length)
+            if content_length
+            else env["wsgi.input"].read()
+        )
+        body, files = _parse_multipart(raw_body, env["CONTENT_TYPE"])
+        if not files:
             raise errors.HttpBadRequest(
                 "ValidationError", "No files attached."
             )
-        body = form.getvalue("metadata")
-        for key in form:
-            files[key] = form.getvalue(key)
     else:
         body = env["wsgi.input"].read()
 
