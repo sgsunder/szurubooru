@@ -138,7 +138,7 @@ def create_app() -> Callable[[Any, Any], Any]:
     """Create a WSGI compatible App object."""
     validate_config()
     coloredlogs.install(fmt="[%(asctime)-15s] %(name)s %(message)s")
-    if config.config["debug"]:
+    if not config.config["quiet"]:
         logging.getLogger("szurubooru").setLevel(logging.INFO)
     if config.config["show_sql"]:
         logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)

@@ -56,10 +56,7 @@
         which
       ];
 
-    # szurubooru/config.py only reads POSTGRES_* env vars inside a container
-    # fake by setting container env variable
     preCheck = ''
-      export container=nix-sandbox
       export TEST_ENVIRONMENT=true
       export HOME=$(mktemp -d)
     '';
@@ -97,6 +94,8 @@
       substitute $src/alembic.ini $out/share/szurubooru/alembic.ini \
         --replace-fail "script_location = szurubooru/migrations" \
                        "script_location = $out/${python3.sitePackages}/szurubooru/migrations"
+
+      install -m0644 $src/config.yaml.dist $out/${python3.sitePackages}/config.yaml.dist
     '';
 
     # Alembic is used to run database migrations. It needs szurubooru in its
