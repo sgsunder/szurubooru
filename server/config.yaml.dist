@@ -168,8 +168,12 @@ privileges:
     'uploads:create':               regular
     'uploads:use_downloader':       power
 
+# suppress info-level server logs (per-request logs, signature/checksum events)?
+quiet: no
+# show sql in server logs?
+show_sql: no
+
 ## ONLY SET THESE IF DEPLOYING OUTSIDE OF DOCKER
-#debug: 0 # generate server logs?
 #show_sql: 0 # show sql in server logs?
 #data_url: /data/
 #data_dir: /var/www/data
