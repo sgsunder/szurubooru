@@ -60,7 +60,7 @@
             <i class='fa fa-globe'></i>
             <a href='https://iqdb.org/?url=<%- encodeURIComponent(ctx.post.fullContentUrl) %>'>IQDB</a> &middot;
             <a href='https://saucenao.com/search.php?url=<%- encodeURIComponent(ctx.post.fullContentUrl) %>'>SauceNao</a> &middot;
-            <a href='https://lens.google.com/uploadbyurl?url=<%- encodeURIComponent(ctx.post.fullContentUrl) %>'>Google</a>
+            <a href='https://yandex.com/images/search?rpt=imageview&url=<%- encodeURIComponent(ctx.post.fullContentUrl) %>'>Yandex</a>
         </section>
 
         <section class='social'>
