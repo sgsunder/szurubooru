@@ -183,6 +183,22 @@ class PostSignature(Base):
     post = sa.orm.relationship("Post", back_populates="signature")
 
 
+class PostVideoHash(Base):
+    __tablename__ = "post_video_hash"
+
+    post_id = sa.Column(
+        "post_id",
+        sa.Integer,
+        sa.ForeignKey("post.id"),
+        primary_key=True,
+        nullable=False,
+        index=True,
+    )
+    hash = sa.Column("hash", sa.LargeBinary(8), nullable=False)
+
+    post = sa.orm.relationship("Post", back_populates="video_hash")
+
+
 class Post(Base):
     __tablename__ = "post"
 
@@ -233,6 +249,13 @@ class Post(Base):
         lazy="joined",
         back_populates="post",
     )
+    video_hash = sa.orm.relationship(
+        "PostVideoHash",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+        lazy="joined",
+        back_populates="post",
+    )
     relations = sa.orm.relationship(
         "Post",
         secondary="post_relation",
@@ -242,16 +265,28 @@ class Post(Base):
         backref="related_by",
     )
     features = sa.orm.relationship(
-        "PostFeature", cascade="all, delete-orphan", lazy="joined", back_populates="post"
+        "PostFeature",
+        cascade="all, delete-orphan",
+        lazy="joined",
+        back_populates="post",
     )
     scores = sa.orm.relationship(
-        "PostScore", cascade="all, delete-orphan", lazy="joined", back_populates="post"
+        "PostScore",
+        cascade="all, delete-orphan",
+        lazy="joined",
+        back_populates="post",
     )
     favorited_by = sa.orm.relationship(
-        "PostFavorite", cascade="all, delete-orphan", lazy="joined", back_populates="post"
+        "PostFavorite",
+        cascade="all, delete-orphan",
+        lazy="joined",
+        back_populates="post",
     )
     notes = sa.orm.relationship(
-        "PostNote", cascade="all, delete-orphan", lazy="joined", back_populates="post"
+        "PostNote",
+        cascade="all, delete-orphan",
+        lazy="joined",
+        back_populates="post",
     )
     comments = sa.orm.relationship(
         "Comment", cascade="all, delete-orphan", back_populates="post"
@@ -267,9 +302,7 @@ class Post(Base):
 
     # dynamic columns
     tag_count = sa.orm.column_property(
-        sa.sql.expression.select(
-            sa.sql.expression.func.count(PostTag.tag_id)
-        )
+        sa.sql.expression.select(sa.sql.expression.func.count(PostTag.tag_id))
         .where(PostTag.post_id == post_id)
         .correlate_except(PostTag)
         .scalar_subquery()
@@ -320,9 +353,7 @@ class Post(Base):
     )
 
     last_favorite_time = sa.orm.column_property(
-        sa.sql.expression.select(
-            sa.sql.expression.func.max(PostFavorite.time)
-        )
+        sa.sql.expression.select(sa.sql.expression.func.max(PostFavorite.time))
         .where(PostFavorite.post_id == post_id)
         .correlate_except(PostFavorite)
         .scalar_subquery()
@@ -338,18 +369,14 @@ class Post(Base):
     )
 
     last_feature_time = sa.orm.column_property(
-        sa.sql.expression.select(
-            sa.sql.expression.func.max(PostFeature.time)
-        )
+        sa.sql.expression.select(sa.sql.expression.func.max(PostFeature.time))
         .where(PostFeature.post_id == post_id)
         .correlate_except(PostFeature)
         .scalar_subquery()
     )
 
     comment_count = sa.orm.column_property(
-        sa.sql.expression.select(
-            sa.sql.expression.func.count(Comment.post_id)
-        )
+        sa.sql.expression.select(sa.sql.expression.func.count(Comment.post_id))
         .where(Comment.post_id == post_id)
         .correlate_except(Comment)
         .scalar_subquery()

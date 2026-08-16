@@ -33,6 +33,32 @@
     propagatedBuildInputs = with python3.pkgs; [freezegun pytest sqlalchemy testing-postgresql];
   };
 
+  # Not packaged in nixpkgs.
+  imagedominantcolor = python3.pkgs.buildPythonPackage {
+    pname = "imagedominantcolor";
+    version = "1.0.1";
+    format = "wheel";
+    src = fetchurl {
+      url = "https://files.pythonhosted.org/packages/8c/cf/92931dbe2151fc92db9827dd12da43fc97e6579e3658e847f10e2f5bce67/imagedominantcolor-1.0.1-py3-none-any.whl";
+      hash = "sha256-2JDWH3hjf3GPXravvWCRkxe4icRcXEEz1r+OZwsY/2w=";
+    };
+    doCheck = false;
+    propagatedBuildInputs = with python3.pkgs; [pillow];
+  };
+
+  # Not packaged in nixpkgs..
+  videohash = python3.pkgs.buildPythonPackage {
+    pname = "videohash";
+    version = "3.0.1";
+    format = "wheel";
+    src = fetchurl {
+      url = "https://files.pythonhosted.org/packages/c1/e5/3fa06f6fc3c7b31cccaa2222c12d459332d2e419cebf238c31bd07cb3e60/videohash-3.0.1-py3-none-any.whl";
+      hash = "sha256-miMNnN701bZ3xzd930d2YrA/7v1S/2dUV+Cu8+GbpNY=";
+    };
+    doCheck = false;
+    propagatedBuildInputs = with python3.pkgs; [pillow imagehash yt-dlp imagedominantcolor];
+  };
+
   pkg = python3.pkgs.buildPythonApplication {
     pname = "szurubooru-server";
     inherit src version;
@@ -80,6 +106,7 @@
       pyyaml
       sqlalchemy
       yt-dlp
+      videohash
     ];
 
     makeWrapperArgs = [

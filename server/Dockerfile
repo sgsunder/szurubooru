@@ -30,7 +30,8 @@ RUN pip3 install --no-cache-dir --disable-pip-version-check --break-system-packa
         yt-dlp \
         # pillow-heif v1.5.0 breaks linux/arm/v7 support
         "pillow-heif>=1.0.0,<1.5.0" \
-        "pillow-avif-plugin>=1.4.6"
+        "pillow-avif-plugin>=1.4.6" \
+        "videohash>=3.0.1"
 RUN apk --no-cache del py3-pip
 
 COPY ./ /opt/app/

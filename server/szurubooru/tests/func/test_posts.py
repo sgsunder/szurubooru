@@ -14,6 +14,7 @@ from szurubooru.func import (
     tags,
     users,
     util,
+    video_hash,
 )
 
 
@@ -476,7 +477,9 @@ def test_update_post_content_for_new_post(
     output_file_name,
 ):
     if input_file == "avif-avis.avif":
-        pytest.xfail("avif-avis file format not supported in pillow-heif>=1.3.0")
+        pytest.xfail(
+            "avif-avis file format not supported in pillow-heif>=1.3.0"
+        )
 
     with patch("szurubooru.func.util.get_sha1"), patch(
         "szurubooru.func.util.get_md5"
@@ -1224,3 +1227,123 @@ def test_search_by_image(post_factory, config_injector, read_asset):
 
     result2 = posts.search_by_image(read_asset("png.png"))
     assert not result2
+
+
+def test_search_by_video(post_factory, config_injector, read_asset):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory()
+    posts.generate_post_video_hash(post, read_asset("mp4.mp4"))
+    db.session.flush()
+
+    result1 = posts.search_by_video(read_asset("mp4.mp4"))
+    assert len(result1) == 1
+    result1_distance, result1_post = result1[0]
+    assert result1_distance == 0.0
+    assert result1_post.post_id == post.post_id
+
+    result2 = posts.search_by_video(read_asset("mp4-different.mp4"))
+    assert not result2
+
+
+def test_search_by_content_dispatches_by_mime_type(
+    post_factory, config_injector, read_asset
+):
+    config_injector({"allow_broken_uploads": False})
+    image_post = post_factory(id=1)
+    video_post = post_factory(id=2)
+    posts.generate_post_signature(image_post, read_asset("jpeg.jpg"))
+    posts.generate_post_video_hash(video_post, read_asset("mp4.mp4"))
+    db.session.flush()
+
+    image_results = posts.search_by_content(read_asset("jpeg-similar.jpg"))
+    assert [post.post_id for _, post in image_results] == [image_post.post_id]
+
+    video_results = posts.search_by_content(read_asset("mp4.mp4"))
+    assert [post.post_id for _, post in video_results] == [video_post.post_id]
+
+    assert not posts.search_by_content(b"not a real file")
+
+
+def test_purge_post_video_hash(post_factory, config_injector, read_asset):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory()
+    posts.generate_post_video_hash(post, read_asset("mp4.mp4"))
+    db.session.flush()
+    assert db.session.query(model.PostVideoHash).count() == 1
+
+    posts.purge_post_video_hash(post)
+    db.session.flush()
+    assert db.session.query(model.PostVideoHash).count() == 0
+
+
+def test_update_post_content_purges_video_hash_on_replacement(
+    tmpdir, config_injector, post_factory, read_asset
+):
+    config_injector(
+        {
+            "data_dir": str(tmpdir.mkdir("data")),
+            "thumbnails": {"post_width": 300, "post_height": 300},
+            "secret": "test",
+            "allow_broken_uploads": False,
+        }
+    )
+    post = post_factory(id=1)
+    db.session.add(post)
+    posts.update_post_content(post, read_asset("mp4.mp4"))
+    posts.generate_post_video_hash(post, read_asset("mp4.mp4"))
+    db.session.flush()
+    assert db.session.query(model.PostVideoHash).count() == 1
+
+    # Replacing the content must invalidate the old hash
+    posts.update_post_content(post, read_asset("webm.webm"))
+    db.session.flush()
+    assert post.type == model.Post.TYPE_VIDEO
+    assert db.session.query(model.PostVideoHash).count() == 0
+
+
+def test_update_post_content_purges_video_hash_when_changing_to_image(
+    tmpdir, config_injector, post_factory, read_asset
+):
+    config_injector(
+        {
+            "data_dir": str(tmpdir.mkdir("data")),
+            "thumbnails": {"post_width": 300, "post_height": 300},
+            "secret": "test",
+            "allow_broken_uploads": False,
+        }
+    )
+    post = post_factory(id=1)
+    db.session.add(post)
+    posts.update_post_content(post, read_asset("mp4.mp4"))
+    posts.generate_post_video_hash(post, read_asset("mp4.mp4"))
+    db.session.flush()
+    assert db.session.query(model.PostVideoHash).count() == 1
+
+    posts.update_post_content(post, read_asset("png.png"))
+    db.session.flush()
+    assert post.type == model.Post.TYPE_IMAGE
+    assert db.session.query(model.PostVideoHash).count() == 0
+    assert db.session.query(model.PostSignature).count() == 1
+
+
+def test_update_post_content_purges_signature_when_changing_to_video(
+    tmpdir, config_injector, post_factory, read_asset
+):
+    config_injector(
+        {
+            "data_dir": str(tmpdir.mkdir("data")),
+            "thumbnails": {"post_width": 300, "post_height": 300},
+            "secret": "test",
+            "allow_broken_uploads": False,
+        }
+    )
+    post = post_factory(id=1)
+    db.session.add(post)
+    posts.update_post_content(post, read_asset("png.png"))
+    db.session.flush()
+    assert db.session.query(model.PostSignature).count() == 1
+
+    posts.update_post_content(post, read_asset("mp4.mp4"))
+    db.session.flush()
+    assert post.type == model.Post.TYPE_VIDEO
+    assert db.session.query(model.PostSignature).count() == 0

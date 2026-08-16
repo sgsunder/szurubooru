@@ -13,6 +13,7 @@ from szurubooru.func.file_uploads import purge_old_uploads
 from szurubooru.func.posts import (
     update_all_md5_checksums,
     update_all_post_signatures,
+    update_all_post_video_hashes,
 )
 
 
@@ -128,6 +129,17 @@ def purge_old_uploads_daemon() -> None:
         time.sleep(60 * 5)
 
 
+def update_all_post_video_hashes_daemon() -> None:
+    # Runs continuously
+    # see the comment on update_all_post_video_hashes()
+    while True:
+        try:
+            update_all_post_video_hashes()
+        except Exception as ex:
+            logging.exception(ex)
+        time.sleep(15)
+
+
 _live_migrations = (
     update_all_post_signatures,
     update_all_md5_checksums,
@@ -144,6 +156,9 @@ def create_app() -> Callable[[Any, Any], Any]:
         logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
     threading.Thread(target=purge_old_uploads_daemon, daemon=True).start()
+    threading.Thread(
+        target=update_all_post_video_hashes_daemon, daemon=True
+    ).start()
 
     for migration in _live_migrations:
         threading.Thread(target=migration, daemon=False).start()

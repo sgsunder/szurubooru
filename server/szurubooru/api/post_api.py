@@ -292,7 +292,7 @@ def get_posts_by_image(
     content = ctx.get_file("content")
 
     try:
-        lookalikes = posts.search_by_image(content)
+        lookalikes = posts.search_by_content(content)
     except (errors.ThirdPartyError, errors.ProcessingError):
         lookalikes = []
 

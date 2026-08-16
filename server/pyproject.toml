@@ -16,6 +16,7 @@ dependencies = [
     "pytz",
     "pyyaml>=6.0",
     "sqlalchemy>=2.0.0",
+    "videohash>=3.0.1",
     "yt-dlp",
 ]
 

@@ -19,6 +19,7 @@ from szurubooru.func import (
     tags,
     users,
     util,
+    video_hash,
 )
 
 logger = logging.getLogger(__name__)
@@ -586,6 +587,46 @@ def update_all_post_signatures() -> None:
             logger.exception(ex)
 
 
+def purge_post_video_hash(post: model.Post) -> None:
+    (
+        db.session.query(model.PostVideoHash)
+        .filter(model.PostVideoHash.post_id == post.post_id)
+        .delete()
+    )
+
+
+def generate_post_video_hash(post: model.Post, content: bytes) -> None:
+    try:
+        packed_hash = video_hash.generate_hash(content)
+        db.session.add(model.PostVideoHash(post=post, hash=packed_hash))
+    except errors.ProcessingError:
+        if not config.config["allow_broken_uploads"]:
+            raise InvalidPostContentError(
+                "Unable to generate video hash data."
+            )
+
+
+def update_all_post_video_hashes() -> None:
+    # Deliberately not called from update_post_content() to avoid
+    # excessive blocking of post uploads/updates
+    posts_to_hash = (
+        db.session.query(model.Post)
+        .filter(model.Post.type == model.Post.TYPE_VIDEO)
+        .filter(model.Post.video_hash == None)  # noqa: E711
+        .order_by(model.Post.post_id.asc())
+        .all()
+    )
+    for post in posts_to_hash:
+        try:
+            generate_post_video_hash(
+                post, files.get(get_post_content_path(post))
+            )
+            db.session.commit()
+            logger.info("Created Video Hash - Post %d", post.post_id)
+        except Exception as ex:
+            logger.exception(ex)
+
+
 def update_all_md5_checksums() -> None:
     posts_to_hash = (
         db.session.query(model.Post)
@@ -641,8 +682,11 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
     ):
         raise PostAlreadyUploadedError(other_post)
 
+    purge_post_signature(post)
+    purge_post_video_hash(post)
     if update_signature:
-        purge_post_signature(post)
+        # Video hashing is deliberately not (re)done here
+        # see the comment on update_all_post_video_hashes()
         generate_post_signature(post, content)
 
     post.file_size = len(content)
@@ -913,6 +957,7 @@ def merge_posts(
 
     # fixes unknown issue with SA's cascade deletions
     purge_post_signature(source_post)
+    purge_post_video_hash(source_post)
     delete(source_post)
     db.session.flush()
 
@@ -970,3 +1015,44 @@ def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
         ]
     else:
         return []
+
+
+def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
+    query_hash = video_hash.generate_hash(video_content)
+
+    # Unlike search_by_image, there is no word/LSH index to narrow down
+    # candidates first -- every hashed video post is scored directly. This
+    # is fine at szurubooru's typical scale; if the video library ever
+    # grows very large this can be optimized the same way images are (a
+    # coarse index, e.g. bucketing by the top bits of the hash, before
+    # falling back to an exact Hamming-distance rescoring pass).
+    candidates = db.session.query(
+        model.PostVideoHash.post_id, model.PostVideoHash.hash
+    ).all()
+
+    results = [
+        (
+            video_hash.normalized_distance(query_hash, bytes(candidate_hash)),
+            post_id,
+        )
+        for post_id, candidate_hash in candidates
+    ]
+    results = [
+        (distance, post_id)
+        for distance, post_id in results
+        if distance < video_hash.DISTANCE_CUTOFF
+    ]
+    results.sort(key=lambda item: item[0])
+    return [
+        (distance, try_get_post_by_id(post_id))
+        for distance, post_id in results[:100]
+    ]
+
+
+def search_by_content(content: bytes) -> List[Tuple[float, model.Post]]:
+    mime_type = mime.get_mime_type(content)
+    if mime.is_image(mime_type):
+        return search_by_image(content)
+    if mime.is_video(mime_type):
+        return search_by_video(content)
+    return []

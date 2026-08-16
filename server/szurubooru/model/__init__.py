@@ -12,6 +12,7 @@ from szurubooru.model.post import (
     PostScore,
     PostSignature,
     PostTag,
+    PostVideoHash,
 )
 from szurubooru.model.snapshot import Snapshot
 from szurubooru.model.tag import Tag, TagImplication, TagName, TagSuggestion
