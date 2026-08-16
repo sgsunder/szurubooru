@@ -284,6 +284,24 @@ def get_posts_around(
     )
 
 
+@rest.routes.get("/post/(?P<post_id>[^/]+)/similar/?")
+def get_similar_posts(
+    ctx: rest.Context, params: Dict[str, str]
+) -> rest.Response:
+    auth.verify_privilege(ctx.user, "posts:view")
+    post = _get_post(params)
+    lookalikes = posts.search_similar_posts(post)
+    return {
+        "similarPosts": [
+            {
+                "distance": distance,
+                "post": _serialize_post(ctx, lookalike),
+            }
+            for distance, lookalike in lookalikes
+        ],
+    }
+
+
 @rest.routes.post("/posts/reverse-search/?")
 def get_posts_by_image(
     ctx: rest.Context, _params: Dict[str, str] = {}

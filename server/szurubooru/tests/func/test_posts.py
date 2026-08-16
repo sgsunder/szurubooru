@@ -1264,6 +1264,57 @@ def test_search_by_content_dispatches_by_mime_type(
     assert not posts.search_by_content(b"not a real file")
 
 
+def test_search_similar_posts_by_image(
+    post_factory, config_injector, read_asset
+):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory(id=1)
+    other_post = post_factory(id=2)
+    posts.generate_post_signature(post, read_asset("jpeg.jpg"))
+    posts.generate_post_signature(other_post, read_asset("jpeg-similar.jpg"))
+    db.session.flush()
+
+    result = posts.search_similar_posts(post)
+    assert len(result) == 1
+    result_distance, result_post = result[0]
+    assert abs(result_distance - 0.19713075553164386) < 1e-8
+    assert result_post.post_id == other_post.post_id
+
+
+def test_search_similar_posts_by_video(
+    post_factory, config_injector, read_asset
+):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory(id=1)
+    other_post = post_factory(id=2)
+    posts.generate_post_video_hash(post, read_asset("mp4.mp4"))
+    posts.generate_post_video_hash(other_post, read_asset("mp4.mp4"))
+    db.session.flush()
+
+    result = posts.search_similar_posts(post)
+    assert len(result) == 1
+    result_distance, result_post = result[0]
+    assert result_distance == 0.0
+    assert result_post.post_id == other_post.post_id
+
+
+def test_search_similar_posts_excludes_self_and_unrelated(
+    post_factory, config_injector, read_asset
+):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory(id=1)
+    posts.generate_post_signature(post, read_asset("jpeg.jpg"))
+    db.session.flush()
+
+    assert not posts.search_similar_posts(post)
+
+
+def test_search_similar_posts_without_hash_data(post_factory):
+    post = post_factory()
+    db.session.flush()
+    assert not posts.search_similar_posts(post)
+
+
 def test_purge_post_video_hash(post_factory, config_injector, read_asset):
     config_injector({"allow_broken_uploads": False})
     post = post_factory()

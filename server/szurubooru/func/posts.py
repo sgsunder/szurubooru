@@ -974,10 +974,11 @@ def search_by_image_exact(image_content: bytes) -> Optional[model.Post]:
     )
 
 
-def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
-    query_signature = image_hash.generate_signature(image_content)
-    query_words = image_hash.generate_words(query_signature)
-
+def _find_similar_by_signature(
+    query_signature: Any,
+    query_words: List[int],
+    exclude_post_id: Optional[int] = None,
+) -> List[Tuple[float, model.Post]]:
     """
     The unnest function is used here to expand one row containing the 'words'
     array into multiple rows each containing a singular word.
@@ -1000,6 +1001,7 @@ def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
             *[
                 (post_id, image_hash.unpack_signature(packedsig))
                 for post_id, packedsig, score in candidates
+                if post_id != exclude_post_id
             ]
         )
     )
@@ -1017,15 +1019,22 @@ def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
         return []
 
 
-def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
-    query_hash = video_hash.generate_hash(video_content)
+def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
+    query_signature = image_hash.generate_signature(image_content)
+    query_words = image_hash.generate_words(query_signature)
+    return _find_similar_by_signature(query_signature, query_words)
 
-    # Unlike search_by_image, there is no word/LSH index to narrow down
-    # candidates first -- every hashed video post is scored directly. This
-    # is fine at szurubooru's typical scale; if the video library ever
-    # grows very large this can be optimized the same way images are (a
-    # coarse index, e.g. bucketing by the top bits of the hash, before
-    # falling back to an exact Hamming-distance rescoring pass).
+
+def _find_similar_by_video_hash(
+    query_hash: bytes, exclude_post_id: Optional[int] = None
+) -> List[Tuple[float, model.Post]]:
+    # Unlike _find_similar_by_signature, there is no word/LSH index to
+    # narrow down candidates first -- every hashed video post is scored
+    # directly. This is fine at szurubooru's typical scale; if the video
+    # library ever grows very large this can be optimized the same way
+    # images are (a coarse index, e.g. bucketing by the top bits of the
+    # hash, before falling back to an exact Hamming-distance rescoring
+    # pass).
     candidates = db.session.query(
         model.PostVideoHash.post_id, model.PostVideoHash.hash
     ).all()
@@ -1036,6 +1045,7 @@ def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
             post_id,
         )
         for post_id, candidate_hash in candidates
+        if post_id != exclude_post_id
     ]
     results = [
         (distance, post_id)
@@ -1049,10 +1059,36 @@ def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
     ]
 
 
+def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
+    query_hash = video_hash.generate_hash(video_content)
+    return _find_similar_by_video_hash(query_hash)
+
+
 def search_by_content(content: bytes) -> List[Tuple[float, model.Post]]:
     mime_type = mime.get_mime_type(content)
     if mime.is_image(mime_type):
         return search_by_image(content)
     if mime.is_video(mime_type):
         return search_by_video(content)
+    return []
+
+
+def search_similar_posts(post: model.Post) -> List[Tuple[float, model.Post]]:
+    """
+    Find posts similar to the given post using its already computed dedupe
+    signature/video hash, without re-reading or re-hashing its content.
+    """
+    if post.signature is not None:
+        query_signature = image_hash.unpack_signature(
+            bytes(post.signature.signature)
+        )
+        return _find_similar_by_signature(
+            query_signature,
+            post.signature.words,
+            exclude_post_id=post.post_id,
+        )
+    if post.video_hash is not None:
+        return _find_similar_by_video_hash(
+            bytes(post.video_hash.hash), exclude_post_id=post.post_id
+        )
     return []

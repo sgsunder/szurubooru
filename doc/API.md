@@ -39,6 +39,7 @@
         - [Updating post](#updating-post)
         - [Getting post](#getting-post)
         - [Getting around post](#getting-around-post)
+        - [Getting similar posts](#getting-similar-posts)
         - [Deleting post](#deleting-post)
         - [Merging posts](#merging-posts)
         - [Rating post](#rating-post)
@@ -1025,6 +1026,43 @@ data.
 - **Description**
 
     Retrieves information about posts that are before or after an existing post.
+
+## Getting similar posts
+- **Request**
+
+    `GET /post/<id>/similar`
+
+- **Output**
+
+    ```json5
+    {
+        "similarPosts": [
+            {
+                "distance": <distance>,
+                "post": <post-resource>
+            },
+            {
+                "distance": <distance>,
+                "post": <post-resource>
+            },
+            ...
+        ]
+    }
+    ```
+
+- **Errors**
+
+    - the post does not exist
+    - privileges are too low
+
+- **Description**
+
+    Retrieves posts that are visual duplicates of the given post, using the
+    same duplicate-detection data that [reverse image
+    search](#reverse-image-search) uses. `<distance>` is the distance from
+    the given post (0..1) - the lower this value is, the more similar the
+    post is. Works only for images, animations and videos that have
+    duplicate-detection data computed; for other posts, this list is empty.
 
 ## Deleting post
 - **Request**

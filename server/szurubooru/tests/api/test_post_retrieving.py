@@ -128,3 +128,45 @@ def test_trying_to_retrieve_single_without_privileges(
             context_factory(user=user_factory(rank=model.User.RANK_ANONYMOUS)),
             {"post_id": 999},
         )
+
+
+def test_retrieving_similar_posts(user_factory, post_factory, context_factory):
+    post = post_factory(id=1)
+    db.session.add(post)
+    db.session.flush()
+    with (
+        patch("szurubooru.func.posts.search_similar_posts") as search_mock,
+        patch("szurubooru.func.posts.serialize_post"),
+    ):
+        search_mock.return_value = [(0.1, post)]
+        posts.serialize_post.return_value = "serialized post"
+        result = api.post_api.get_similar_posts(
+            context_factory(user=user_factory(rank=model.User.RANK_REGULAR)),
+            {"post_id": 1},
+        )
+        assert result == {
+            "similarPosts": [
+                {"distance": 0.1, "post": "serialized post"},
+            ],
+        }
+        search_mock.assert_called_once_with(post)
+
+
+def test_trying_to_retrieve_similar_posts_non_existing(
+    user_factory, context_factory
+):
+    with pytest.raises(posts.PostNotFoundError):
+        api.post_api.get_similar_posts(
+            context_factory(user=user_factory(rank=model.User.RANK_REGULAR)),
+            {"post_id": 999},
+        )
+
+
+def test_trying_to_retrieve_similar_posts_without_privileges(
+    user_factory, context_factory
+):
+    with pytest.raises(errors.AuthError):
+        api.post_api.get_similar_posts(
+            context_factory(user=user_factory(rank=model.User.RANK_ANONYMOUS)),
+            {"post_id": 999},
+        )
