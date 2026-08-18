@@ -22,14 +22,37 @@ DISTANCE_CUTOFF_BITS = 10
 """Untuned starting point. Adjust based on real-world testing."""
 
 _MIN_FRAME_INTERVAL = 0.1
+_MAX_FRAME_INTERVAL = 60.0
 _DEFAULT_FRAME_INTERVAL = 1.0
 _TARGET_SAMPLE_FRAMES = 60
 """
-Scale long videos down to keep hashing time roughly bounded for long videos,
-by ensuring that all videos sample this many frames.
+Scale the sampling rate so every video contributes roughly this many frames
+to its hash, regardless of duration. This is the important part for short
+clips: sampling too few frames collapses the collage into mostly empty
+padding, which the wavelet hash sees as "shape", not content, so unrelated
+short videos end up hashing to (near-)identical values. See _MAX_FRAME_INTERVAL.
 """
 
 DISTANCE_CUTOFF = DISTANCE_CUTOFF_BITS / HASH_BITS
+
+
+def _get_frame_interval_for_duration(duration: float) -> float:
+    if duration <= 0:
+        return _DEFAULT_FRAME_INTERVAL
+    # The upper bound here used to be _DEFAULT_FRAME_INTERVAL (1 fps):
+    #   - starved any video under ~60s of frames (an 8s clip got ~8
+    #     frames, a 1s clip got exactly 1)
+    #   - too few frames -> collage is mostly black padding -> wavelet
+    #     hash describes the padding, not the video
+    #   - confirmed on real ~8s videos: unrelated content hashed 0-2 bits
+    #     apart (bad) under the old cap, 26-38 bits apart (correct) once
+    #     given enough frames
+    # _MAX_FRAME_INTERVAL raises that ceiling so short clips still get
+    # sampled up to ~_TARGET_SAMPLE_FRAMES frames.
+    return max(
+        _MIN_FRAME_INTERVAL,
+        min(_MAX_FRAME_INTERVAL, _TARGET_SAMPLE_FRAMES / duration),
+    )
 
 
 def _get_frame_interval(content: bytes) -> float:
@@ -37,20 +60,13 @@ def _get_frame_interval(content: bytes) -> float:
         duration = float(images.Image(content).info["format"]["duration"])
     except (errors.ProcessingError, KeyError, ValueError, TypeError):
         return _DEFAULT_FRAME_INTERVAL
-    if duration <= 0:
-        return _DEFAULT_FRAME_INTERVAL
-    return max(
-        _MIN_FRAME_INTERVAL,
-        min(_DEFAULT_FRAME_INTERVAL, _TARGET_SAMPLE_FRAMES / duration),
-    )
+    return _get_frame_interval_for_duration(duration)
 
 
 def generate_hash(content: bytes) -> bytes:
     extension = mime.get_extension(mime.get_mime_type(content))
     if not extension:
-        raise errors.ProcessingError(
-            "Unable to generate a video hash for this file."
-        )
+        raise errors.ProcessingError("Unable to generate a video hash for this file.")
 
     frame_interval = _get_frame_interval(content)
 
@@ -74,15 +90,11 @@ def generate_hash(content: bytes) -> bytes:
         raise
     except Exception as ex:
         logger.warning("Unable to generate video hash (%r)", ex)
-        raise errors.ProcessingError(
-            "Unable to generate a video hash for this video."
-        )
+        raise errors.ProcessingError("Unable to generate a video hash for this video.")
 
 
 def hamming_distance(hash_a: bytes, hash_b: bytes) -> int:
-    return bin(
-        int.from_bytes(hash_a, "big") ^ int.from_bytes(hash_b, "big")
-    ).count("1")
+    return bin(int.from_bytes(hash_a, "big") ^ int.from_bytes(hash_b, "big")).count("1")
 
 
 def normalized_distance(hash_a: bytes, hash_b: bytes) -> float:
