@@ -7,10 +7,13 @@ from szurubooru.func import snapshots
 
 
 @pytest.fixture(autouse=True)
-def session(query_logger, postgresql_db):
+def session(request, query_logger, _pg_installed):
     """
     Override db session for this specific test section only
     """
+    if not _pg_installed:
+        pytest.xfail("PostgreSQL is not installed but this test requires it")
+    postgresql_db = request.getfixturevalue("postgresql_db")
     db.session = postgresql_db.session
     postgresql_db.create_table(*model.Base.metadata.sorted_tables)
     try:
@@ -20,11 +23,6 @@ def session(query_logger, postgresql_db):
 
 
 def test_modify_saves_non_empty_diffs(post_factory, user_factory):
-    if "sqlite" in db.session.get_bind().driver:
-        pytest.xfail(
-            "SQLite doesn't support transaction isolation, "
-            "which is required to retrieve original entity"
-        )
     post = post_factory()
     post.notes = [model.PostNote(polygon=[(0, 0), (0, 1), (1, 1)], text="old")]
     user = user_factory()
