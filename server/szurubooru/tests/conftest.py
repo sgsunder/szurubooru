@@ -9,10 +9,15 @@ import freezegun
 import pytest
 import sqlalchemy as sa
 import sqlalchemy.orm as sa_orm
-import testing.postgresql
 from sqlalchemy import event
 
 from szurubooru import config, db, model, rest
+
+try:
+    import testing.postgresql
+    _HAS_TESTING_POSTGRESQL = True
+except ImportError:
+    _HAS_TESTING_POSTGRESQL = False
 
 _PG_ARGS = (
     "-c TimeZone=UTC "
@@ -33,6 +38,18 @@ def _pg_engine(_pg_server):
     engine = sa.create_engine(_pg_server.url())
     yield engine
     engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def _pg_installed():
+    """Cheap availability check (binary lookup only, no server start)."""
+    if not _HAS_TESTING_POSTGRESQL:
+        return False
+    try:
+        testing.postgresql.skipIfNotFound.search_server()
+        return True
+    except Exception:
+        return False
 
 
 class _TransactedTestDB:
@@ -120,6 +137,43 @@ def postgresql_db(_pg_engine):
             conn.commit()
 
 
+@pytest.fixture
+def transacted_sqlite_db():
+    """SQLite equivalent of transacted_postgresql_db.
+
+    Unlike Postgres, SQLite needs no external server process, so a fresh
+    in-memory engine per test function is cheap and keeps tests isolated.
+    """
+    engine = sa.create_engine("sqlite://")
+
+    # SQLite doesn't enforce foreign keys by default; Postgres always does.
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    conn = engine.connect()
+    trans = conn.begin()
+    # bind= is deprecated in SA 2.0 but still functional; removed in SA 3.0
+    session = sa_orm.Session(bind=conn)  # noqa: SA-legacy
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def _restart_savepoint(session, transaction):
+        if transaction.nested and not transaction._parent.nested:
+            session.begin_nested()
+
+    try:
+        yield _TransactedTestDB(conn, session, trans)
+    finally:
+        session.close()
+        if trans.is_active:
+            trans.rollback()
+        conn.close()
+        engine.dispose()
+
+
 def get_unique_name():
     alphabet = string.ascii_letters + string.digits
     return "".join(random.choice(alphabet) for _ in range(8))
@@ -152,7 +206,25 @@ def query_logger(pytestconfig):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def session(query_logger, transacted_postgresql_db):
+def session(query_logger, transacted_sqlite_db):
+    db.session = transacted_sqlite_db.session
+    transacted_sqlite_db.create_table(*model.Base.metadata.sorted_tables)
+    try:
+        yield transacted_sqlite_db.session
+    finally:
+        transacted_sqlite_db.reset_db()
+
+
+@pytest.fixture(scope="function")
+def postgres_session(request, query_logger, _pg_installed):
+    """Opt-in real-Postgres session for tests that need Postgres-only functionality."""
+    if not _pg_installed:
+        pytest.xfail("PostgreSQL is not installed but this test requires it")
+    # Requesting `transacted_postgresql_db` lazily via request.getfixturevalue() means the
+    # real Postgres server is never started when it isn't installed.
+    transacted_postgresql_db = request.getfixturevalue(
+        "transacted_postgresql_db"
+    )
     db.session = transacted_postgresql_db.session
     transacted_postgresql_db.create_table(*model.Base.metadata.sorted_tables)
     try:
@@ -189,6 +261,16 @@ def context_factory(session):
         return ctx
 
     return factory
+
+
+@pytest.fixture(autouse=True)
+def _restore_config():
+    """Undo config_injector's global mutation after each test."""
+    original = config.config
+    try:
+        yield
+    finally:
+        config.config = original
 
 
 @pytest.fixture

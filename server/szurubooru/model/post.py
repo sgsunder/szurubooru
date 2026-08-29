@@ -175,7 +175,10 @@ class PostSignature(Base):
     signature = sa.Column("signature", sa.LargeBinary, nullable=False)
     words = sa.Column(
         "words",
-        sa.dialects.postgresql.ARRAY(sa.Integer, dimensions=1),
+        # ARRAY has no SQLite equivalent
+        sa.dialects.postgresql.ARRAY(sa.Integer, dimensions=1).with_variant(
+            sa.PickleType(), "sqlite"
+        ),
         nullable=False,
         index=True,
     )

@@ -9,22 +9,20 @@ from szurubooru.func import snapshots
 
 
 @pytest.fixture(autouse=True)
-def session(query_logger, _pg_engine):
+def session(query_logger):
     """
     Commits db session and forces autoflush to False.
     Needed to reproduce batched Snapshot inserts as seen in production.
     """
-    session = sa_orm.Session(bind=_pg_engine, autoflush=False)
+    engine = sa.create_engine("sqlite://")
+    session = sa_orm.Session(bind=engine, autoflush=False)
     db.session = session
-    model.Base.metadata.create_all(_pg_engine, checkfirst=True)
+    model.Base.metadata.create_all(engine, checkfirst=True)
     try:
         yield session
     finally:
         session.close()
-        with _pg_engine.connect() as conn:
-            conn.execute(sa.text("DROP SCHEMA public CASCADE"))
-            conn.execute(sa.text("CREATE SCHEMA public"))
-            conn.commit()
+        engine.dispose()
 
 
 def test_create_batches_post_and_new_tag_snapshots(
