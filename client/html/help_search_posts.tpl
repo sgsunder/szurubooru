@@ -75,6 +75,10 @@
             <td>having been featured given number of times</td>
         </tr>
         <tr>
+            <td><code>inspiration-count</code></td>
+            <td>having been inspired a given number of times</td>
+        </tr>
+        <tr>
             <td><code>type</code></td>
             <td>given type of posts. <code>&lt;value&gt;</code> can be either <code>image</code>, <code>animation</code> (or <code>animated</code> or <code>anim</code>), <code>flash</code> (or <code>swf</code>) or <code>video</code> (or <code>webm</code>).</td>
         </tr>
@@ -195,6 +199,18 @@
             <td>alias of <code>feature-time</code></td>
         </tr>
         <tr>
+            <td><code>inspiration-date</code></td>
+            <td>last inspired at given date</td>
+        </tr>
+        <tr>
+            <td><code>inspiration-time</code></td>
+            <td>alias of <code>inspiration-date</code></td>
+        </tr>
+        <tr>
+            <td><code>last-inspiration-time</code></td>
+            <td>alias of <code>inspiration-date</code></td>
+        </tr>
+        <tr>
             <td><code>safety</code></td>
             <td>having given safety</td>
         </tr>
@@ -244,6 +260,10 @@
         <tr>
             <td><code>feature-count</code></td>
             <td>most often featured</td>
+        </tr>
+        <tr>
+            <td><code>inspiration-count</code></td>
+            <td>most inspired</td>
         </tr>
         <tr>
             <td><code>file-size</code></td>
@@ -328,6 +348,18 @@
         <tr>
             <td><code>feature-time</code></td>
             <td>alias of <code>feature-time</code></td>
+        </tr>
+        <tr>
+            <td><code>inspiration-date</code></td>
+            <td>recently inspired by anyone</td>
+        </tr>
+        <tr>
+            <td><code>inspiration-time</code></td>
+            <td>alias of <code>inspiration-date</code></td>
+        </tr>
+        <tr>
+            <td><code>last-inspiration-time</code></td>
+            <td>alias of <code>inspiration-date</code></td>
         </tr>
     </tbody>
 </table>

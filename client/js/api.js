@@ -104,6 +104,10 @@ class Api extends events.EventTarget {
         return !!remoteConfig.canSendMails;
     }
 
+    getInspirationCooldownSec() {
+        return remoteConfig.inspirationCooldownSec;
+    }
+
     safetyEnabled() {
         return !!remoteConfig.enableSafety;
     }

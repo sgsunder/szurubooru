@@ -67,6 +67,8 @@
             <div class='score-container'></div>
 
             <div class='fav-container'></div>
+
+            <div class='inspire-container'></div>
         </section>
     </article>
 

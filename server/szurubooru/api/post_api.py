@@ -5,6 +5,7 @@ from szurubooru import db, errors, model, rest, search
 from szurubooru.func import (
     auth,
     favorites,
+    inspirations,
     mime,
     posts,
     scores,
@@ -268,6 +269,26 @@ def delete_post_from_favorites(
     auth.verify_privilege(ctx.user, "posts:favorite")
     post = _get_post(params)
     favorites.unset_favorite(post, ctx.user)
+    ctx.session.commit()
+    return _serialize_post(ctx, post)
+
+
+@rest.routes.post("/post/(?P<post_id>[^/]+)/inspire/?")
+def inspire_post(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
+    auth.verify_privilege(ctx.user, "posts:inspire")
+    post = _get_post(params)
+    inspirations.add_inspiration(post, ctx.user)
+    ctx.session.commit()
+    return _serialize_post(ctx, post)
+
+
+@rest.routes.delete("/post/(?P<post_id>[^/]+)/inspire/?")
+def reset_post_inspiration(
+    ctx: rest.Context, params: Dict[str, str]
+) -> rest.Response:
+    auth.verify_privilege(ctx.user, "posts:inspire:reset")
+    post = _get_post(params)
+    inspirations.reset_inspirations(post)
     ctx.session.commit()
     return _serialize_post(ctx, post)
 

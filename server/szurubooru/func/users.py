@@ -107,6 +107,7 @@ class UserSerializer(serialization.BaseSerializer):
             "name": self.serialize_name,
             "creationTime": self.serialize_creation_time,
             "lastLoginTime": self.serialize_last_login_time,
+            "lastInspirationTime": self.serialize_last_inspiration_time,
             "version": self.serialize_version,
             "rank": self.serialize_rank,
             "avatarStyle": self.serialize_avatar_style,
@@ -127,6 +128,9 @@ class UserSerializer(serialization.BaseSerializer):
 
     def serialize_last_login_time(self) -> Any:
         return self.user.last_login_time
+
+    def serialize_last_inspiration_time(self) -> Any:
+        return self.user.last_inspiration_time
 
     def serialize_version(self) -> Any:
         return self.user.version

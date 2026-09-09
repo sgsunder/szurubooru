@@ -37,6 +37,33 @@ class PostFeature(Base):
     )
 
 
+class PostInspiration(Base):
+    __tablename__ = "post_inspiration"
+
+    post_inspiration_id = sa.Column("id", sa.Integer, primary_key=True)
+    post_id = sa.Column(
+        "post_id",
+        sa.Integer,
+        sa.ForeignKey("post.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id = sa.Column(
+        "user_id",
+        sa.Integer,
+        sa.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    time = sa.Column("time", sa.DateTime, nullable=False)
+
+    post = sa.orm.relationship("Post", back_populates="inspirations")
+    user = sa.orm.relationship(
+        "User",
+        backref=sa.orm.backref("post_inspirations", cascade="all, delete-orphan"),
+    )
+
+
 class PostScore(Base):
     __tablename__ = "post_score"
 
@@ -253,6 +280,9 @@ class Post(Base):
     favorited_by = sa.orm.relationship(
         "PostFavorite", cascade="all, delete-orphan", lazy="joined", back_populates="post"
     )
+    inspirations = sa.orm.relationship(
+        "PostInspiration", cascade="all, delete-orphan", lazy="joined", back_populates="post"
+    )
     notes = sa.orm.relationship(
         "PostNote", cascade="all, delete-orphan", lazy="joined", back_populates="post"
     )
@@ -328,6 +358,24 @@ class Post(Base):
         )
         .where(PostFavorite.post_id == post_id)
         .correlate_except(PostFavorite)
+        .scalar_subquery()
+    )
+
+    inspiration_count = sa.orm.column_property(
+        sa.sql.expression.select(
+            sa.sql.expression.func.count(PostInspiration.post_id)
+        )
+        .where(PostInspiration.post_id == post_id)
+        .correlate_except(PostInspiration)
+        .scalar_subquery()
+    )
+
+    last_inspiration_time = sa.orm.column_property(
+        sa.sql.expression.select(
+            sa.sql.expression.func.max(PostInspiration.time)
+        )
+        .where(PostInspiration.post_id == post_id)
+        .correlate_except(PostInspiration)
         .scalar_subquery()
     )
 

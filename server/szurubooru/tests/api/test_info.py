@@ -50,6 +50,9 @@ def test_info_api(
             "smtp": {
                 "host": "example.com",
             },
+            "inspirations": {
+                "cooldown_seconds": 3600,
+            },
         }
     )
     db.session.add_all([post_factory(), post_factory()])
@@ -59,6 +62,7 @@ def test_info_api(
         "name": "test installation",
         "contactEmail": "test@example.com",
         "enableSafety": True,
+        "inspirationCooldownSec": 3600,
         "userNameRegex": "1",
         "passwordRegex": "2",
         "tagNameRegex": "3",

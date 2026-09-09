@@ -138,6 +138,14 @@ class Post extends events.EventTarget {
         return this._favoriteCount;
     }
 
+    get inspirationCount() {
+        return this._inspirationCount;
+    }
+
+    get lastInspirationTime() {
+        return this._lastInspirationTime;
+    }
+
     get ownFavorite() {
         return this._ownFavorite;
     }
@@ -454,6 +462,39 @@ class Post extends events.EventTarget {
             });
     }
 
+    inspire() {
+        return api
+            .post(uri.formatApiLink("post", this.id, "inspire"))
+            .then((response) => {
+                this._updateFromResponse(response);
+                api.user.lastInspirationTime = new Date().toISOString();
+                this.dispatchEvent(
+                    new CustomEvent("changeInspiration", {
+                        detail: {
+                            post: this,
+                        },
+                    })
+                );
+                return Promise.resolve();
+            });
+    }
+
+    resetInspiration() {
+        return api
+            .delete(uri.formatApiLink("post", this.id, "inspire"))
+            .then((response) => {
+                this._updateFromResponse(response);
+                this.dispatchEvent(
+                    new CustomEvent("changeInspiration", {
+                        detail: {
+                            post: this,
+                        },
+                    })
+                );
+                return Promise.resolve();
+            });
+    }
+
     mutateContentUrl() {
         this._contentUrl =
             this._orig._contentUrl +
@@ -489,6 +530,8 @@ class Post extends events.EventTarget {
             _score: response.score,
             _commentCount: response.commentCount,
             _favoriteCount: response.favoriteCount,
+            _inspirationCount: response.inspirationCount,
+            _lastInspirationTime: response.lastInspirationTime,
             _ownScore: response.ownScore,
             _ownFavorite: response.ownFavorite,
             _hasCustomThumbnail: response.hasCustomThumbnail,

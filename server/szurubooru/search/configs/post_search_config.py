@@ -194,6 +194,7 @@ class PostSearchConfig(BaseSearchConfig):
             sa.orm.defer(model.Post.last_favorite_time),
             sa.orm.defer(model.Post.feature_count),
             sa.orm.defer(model.Post.last_feature_time),
+            sa.orm.defer(model.Post.last_inspiration_time),
             sa.orm.defer(model.Post.last_comment_creation_time),
             sa.orm.defer(model.Post.last_comment_edit_time),
             sa.orm.defer(model.Post.note_count),
@@ -296,6 +297,10 @@ class PostSearchConfig(BaseSearchConfig):
                     search_util.create_num_filter(model.Post.feature_count),
                 ),
                 (
+                    ["inspiration-count"],
+                    search_util.create_num_filter(model.Post.inspiration_count),
+                ),
+                (
                     ["type"],
                     search_util.create_str_filter(
                         model.Post.type, _type_transformer
@@ -364,6 +369,16 @@ class PostSearchConfig(BaseSearchConfig):
                     ),
                 ),
                 (
+                    [
+                        "inspiration-date",
+                        "inspiration-time",
+                        "last-inspiration-time",
+                    ],
+                    search_util.create_date_filter(
+                        model.Post.last_inspiration_time
+                    ),
+                ),
+                (
                     ["safety", "rating"],
                     search_util.create_str_filter(
                         model.Post.safety, _safety_transformer
@@ -406,6 +421,10 @@ class PostSearchConfig(BaseSearchConfig):
                     ["feature-count"],
                     (model.Post.feature_count, self.SORT_DESC),
                 ),
+                (
+                    ["inspiration-count"],
+                    (model.Post.inspiration_count, self.SORT_DESC),
+                ),
                 (["file-size"], (model.Post.file_size, self.SORT_DESC)),
                 (
                     ["image-width", "width"],
@@ -443,6 +462,14 @@ class PostSearchConfig(BaseSearchConfig):
                 (
                     ["feature-date", "feature-time"],
                     (model.Post.last_feature_time, self.SORT_DESC),
+                ),
+                (
+                    [
+                        "inspiration-date",
+                        "inspiration-time",
+                        "last-inspiration-time",
+                    ],
+                    (model.Post.last_inspiration_time, self.SORT_DESC),
                 ),
             ]
         )

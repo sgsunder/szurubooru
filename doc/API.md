@@ -1156,6 +1156,49 @@ data.
 
     Unmarks the post as favorite for authenticated user.
 
+## Inspiring post
+- **Request**
+
+    `POST /post/<id>/inspire`
+
+- **Output**
+
+    A [post resource](#post).
+
+- **Errors**
+
+    - post does not exist
+    - privileges are too low
+    - the user is not logged in
+    - the user is still on cooldown from a previous inspiration (see
+      `inspirations.cooldown_seconds` in the server config)
+
+- **Description**
+
+    Increments the post's inspiration counter on behalf of the authenticated
+    user. Each user may inspire at most once per configured cooldown period;
+    the cooldown is shared across all posts, i.e. inspiring one post starts
+    the cooldown for inspiring any other post.
+
+## Resetting post inspiration counter
+- **Request**
+
+    `DELETE /post/<id>/inspire`
+
+- **Output**
+
+    A [post resource](#post).
+
+- **Errors**
+
+    - post does not exist
+    - privileges are too low
+
+- **Description**
+
+    Resets the post's inspiration counter to zero, removing all recorded
+    inspirations of that post.
+
 ## Getting featured post
 - **Request**
 
@@ -2266,6 +2309,7 @@ A single user.
     "email":             <email>,
     "rank":              <rank>,
     "lastLoginTime":     <last-login-time>,
+    "lastInspirationTime": <last-inspiration-time>,
     "creationTime":      <creation-time>,
     "avatarStyle":       <avatar-style>,
     "avatarUrl":         <avatar-url>,
@@ -2295,6 +2339,8 @@ A single user.
     - `"administrator"`: administrator
 
 - `<last-login-time>`: the last login time, formatted as per RFC 3339.
+- `<last-inspiration-time>`: the last time the user inspired any post,
+  formatted as per RFC 3339. `null` if the user has never inspired a post.
 - `<creation-time>`: the user registration time, formatted as per RFC 3339.
 - `<avatarStyle>`: how to render the user avatar.
 
@@ -2456,6 +2502,8 @@ One file together with its metadata posted to the site.
     "ownFavorite":        <own-favorite>,
     "tagCount":           <tag-count>,
     "favoriteCount":      <favorite-count>,
+    "inspirationCount":   <inspiration-count>,
+    "lastInspirationTime": <last-inspiration-time>,
     "commentCount":       <comment-count>,
     "noteCount":          <note-count>,
     "featureCount":       <feature-count>,
@@ -2526,6 +2574,10 @@ One file together with its metadata posted to the site.
   favorites.
 - `<tag-count>`: how many tags the post is tagged with
 - `<favorite-count>`: how many users have the post in their favorites
+- `<inspiration-count>`: how many times the post has been inspired
+  (cumulative across all users).
+- `<last-inspiration-time>`: the last time the post was inspired, formatted
+  as per RFC 3339. `null` if the post has never been inspired.
 - `<comment-count>`: how many comments are filed under that post
 - `<note-count>`: how many notes the post has
 - `<feature-count>`: how many times has the post been featured.

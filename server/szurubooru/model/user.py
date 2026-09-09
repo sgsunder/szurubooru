@@ -1,8 +1,11 @@
+from datetime import datetime
+from typing import Optional
+
 import sqlalchemy as sa
 
 from szurubooru.model.base import Base
 from szurubooru.model.comment import Comment
-from szurubooru.model.post import Post, PostFavorite, PostScore
+from szurubooru.model.post import Post, PostFavorite, PostInspiration, PostScore
 
 
 class User(Base):
@@ -92,6 +95,16 @@ class User(Base):
             .filter(PostScore.score == -1)
             .one()[0]
             or 0
+        )
+
+    @property
+    def last_inspiration_time(self) -> Optional[datetime]:
+        from szurubooru.db import session
+
+        return (
+            session.query(sa.sql.expression.func.max(PostInspiration.time))
+            .filter(PostInspiration.user_id == self.user_id)
+            .one()[0]
         )
 
     __mapper_args__ = {

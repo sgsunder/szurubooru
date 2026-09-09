@@ -101,11 +101,21 @@
 
         .social
             margin-top: 1em
+            &:after
+                display: block
+                height: 1px
+                content: ' '
+                clear: both
             .score-container
                 float: left
                 margin-right: 3em
                 .downvote i
                     text-align: right
+            .fav-container
+                float: left
+                margin-right: 3em
+            .inspire-container
+                float: left
             i
                 text-align: left
                 margin: 0
