@@ -220,9 +220,22 @@
                     margin-bottom: 0.5em
         &:not(.opened)
             [type=text],
-            .start
+            .start,
+            .tag-all,
+            .untag-all
                 display: none
             .hint
+                display: none
+        &.running
+            [type=text]
+                pointer-events: none
+                opacity: 0.6
+            .start,
+            .tag-all,
+            .untag-all
+                display: none
+        &:not(.running)
+            .bulk-edit-tags-progress
                 display: none
         input[name=tag]
             width: 24em
@@ -230,6 +243,16 @@
                 display: block
                 width: 100%
                 margin-bottom: 0.5em
+        .bulk-edit-tags-progress
+            display: inline-block
+            margin-right: 1em
+            .progress-bar
+                width: 12em
+                vertical-align: middle
+                margin-right: 0.5em
+            .progress-text
+                font-size: 0.9em
+                color: $inactive-link-color
         .append
             &.open,
             &.hint

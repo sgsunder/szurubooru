@@ -2,6 +2,7 @@
 
 const router = require("../router.js");
 const api = require("../api.js");
+const misc = require("../util/misc.js");
 const settings = require("../models/settings.js");
 const uri = require("../util/uri.js");
 const PostList = require("../models/post_list.js");
@@ -22,6 +23,11 @@ const fields = [
     "tags",
     "version",
 ];
+
+// no server-side rate limiting or bulk-edit endpoint exists, so an unbounded
+// Promise.all over a large search result would fire that many simultaneous
+// requests; this keeps a small, fixed amount of parallelism instead.
+const BULK_TAG_CONCURRENCY = 4;
 
 class PostListController {
     constructor(ctx) {
@@ -50,7 +56,7 @@ class PostListController {
             },
         });
         this._headerView.addEventListener("navigate", (e) =>
-            this._evtNavigate(e)
+            this._evtNavigate(e),
         );
 
         if (this._headerView._bulkDeleteEditor) {
@@ -58,16 +64,33 @@ class PostListController {
                 "deleteSelectedPosts",
                 (e) => {
                     this._evtDeleteSelectedPosts(e);
-                }
+                },
+            );
+        }
+
+        if (this._headerView._bulkTagEditor) {
+            this._headerView.addEventListener("tagAll", (e) =>
+                this._evtTagAll(e),
+            );
+            this._headerView.addEventListener("untagAll", (e) =>
+                this._evtUntagAll(e),
+            );
+            this._headerView.addEventListener("cancelTagAll", (e) =>
+                this._evtCancelTagAll(e),
             );
         }
 
         this._postsMarkedForDeletion = [];
+        this._bulkTagOperation = null;
         this._syncPageController();
     }
 
     showSuccess(message) {
         this._pageController.showSuccess(message);
+    }
+
+    showError(message) {
+        this._pageController.showError(message);
     }
 
     get _bulkEditTags() {
@@ -76,7 +99,7 @@ class PostListController {
 
     _evtNavigate(e) {
         router.showNoDispatch(
-            uri.formatClientLink("posts", e.detail.parameters)
+            uri.formatClientLink("posts", e.detail.parameters),
         );
         Object.assign(this._ctx.parameters, e.detail.parameters);
         this._syncPageController();
@@ -84,7 +107,7 @@ class PostListController {
 
     _evtTag(e) {
         Promise.all(
-            this._bulkEditTags.map((tag) => e.detail.post.tags.addByName(tag))
+            this._bulkEditTags.map((tag) => e.detail.post.tags.addByName(tag)),
         )
             .then(e.detail.post.save())
             .catch((error) => window.alert(error.message));
@@ -110,7 +133,7 @@ class PostListController {
             this._postsMarkedForDeletion.push(e.detail.post);
         } else {
             this._postsMarkedForDeletion = this._postsMarkedForDeletion.filter(
-                (x) => x.id != e.detail.post.id
+                (x) => x.id != e.detail.post.id,
             );
         }
     }
@@ -120,17 +143,167 @@ class PostListController {
 
         if (
             confirm(
-                `Are you sure you want to delete ${this._postsMarkedForDeletion.length} posts?`
+                `Are you sure you want to delete ${this._postsMarkedForDeletion.length} posts?`,
             )
         ) {
             Promise.all(
-                this._postsMarkedForDeletion.map((post) => post.delete())
+                this._postsMarkedForDeletion.map((post) => post.delete()),
             )
                 .catch((error) => window.alert(error.message))
                 .then(() => {
                     this._postsMarkedForDeletion = [];
                     this._headerView._navigate();
                 });
+        }
+    }
+
+    _evtTagAll(e) {
+        this._startBulkTagOperation(e.detail.tagText, "add");
+    }
+
+    _evtUntagAll(e) {
+        this._startBulkTagOperation(e.detail.tagText, "remove");
+    }
+
+    _evtCancelTagAll(e) {
+        if (this._bulkTagOperation) {
+            this._bulkTagOperation.cancelled = true;
+        }
+    }
+
+    _startBulkTagOperation(tagText, mode) {
+        const tags = misc.splitByWhitespace(tagText || "");
+        if (!tags.length) {
+            window.alert("Please enter at least one tag.");
+            return;
+        }
+
+        PostList.search(this._ctx.parameters.query, 0, 1, ["id"])
+            .then((response) => {
+                if (!response.total) {
+                    window.alert("No posts match the current search query.");
+                    return;
+                }
+
+                const verb = mode === "add" ? "add" : "remove";
+                const prep = mode === "add" ? "to" : "from";
+                const queryDisplay = this._ctx.parameters.query
+                    ? `"${this._ctx.parameters.query}"`
+                    : "(empty query — this matches ALL posts on the site)";
+                const tagsDisplay = tags.join("\n");
+                const message =
+                    `This will ${verb} the tag(s):\n\n${tagsDisplay}\n\n` +
+                    `${prep} all ${response.total} post(s) matching the ` +
+                    `search query:\n\n${queryDisplay}\n\n` +
+                    "Continue?";
+                if (!confirm(message)) {
+                    return;
+                }
+
+                this._runBulkTagOperation(tags, mode, response.total);
+            })
+            .catch((error) => window.alert(error.message));
+    }
+
+    _runBulkTagOperation(tags, mode, total) {
+        const cancellation = { cancelled: false };
+        this._bulkTagOperation = cancellation;
+
+        const editor = this._headerView._bulkTagEditor;
+        editor.setRunning(true);
+        editor.setProgress(0, total, 0);
+
+        const startTime = Date.now();
+        let processed = 0;
+        let failed = 0;
+        let offset = 0;
+        const limit = 100; // server-enforced page size cap
+
+        const applyToPost = (post) => {
+            if (mode === "add") {
+                return Promise.all(
+                    tags.map((tag) => post.tags.addByName(tag)),
+                ).then(() => post.save());
+            }
+            for (let tag of tags) {
+                post.tags.removeByName(tag);
+            }
+            return post.save();
+        };
+
+        const runWorkerPool = (posts) => {
+            let index = 0;
+            const worker = () => {
+                if (cancellation.cancelled || index >= posts.length) {
+                    return Promise.resolve();
+                }
+                const post = posts.at(index++);
+                return applyToPost(post)
+                    .catch((error) => {
+                        failed++;
+                    })
+                    .then(() => {
+                        processed++;
+                        const elapsedSeconds = (Date.now() - startTime) / 1000;
+                        const rate =
+                            processed / Math.max(elapsedSeconds, 0.001);
+                        const etaSeconds =
+                            rate > 0 ? (total - processed) / rate : 0;
+                        editor.setProgress(processed, total, etaSeconds);
+                        return worker();
+                    });
+            };
+            const workers = [];
+            for (let i = 0; i < BULK_TAG_CONCURRENCY; i++) {
+                workers.push(worker());
+            }
+            return Promise.all(workers);
+        };
+
+        const fetchAndProcessNextPage = () => {
+            if (cancellation.cancelled || offset >= total) {
+                return Promise.resolve();
+            }
+            return PostList.search(
+                this._ctx.parameters.query,
+                offset,
+                limit,
+                fields,
+            ).then((response) => {
+                offset += limit;
+                return runWorkerPool(response.results).then(() =>
+                    fetchAndProcessNextPage(),
+                );
+            });
+        };
+
+        fetchAndProcessNextPage()
+            .catch((error) => window.alert(error.message))
+            .then(() => {
+                this._finishBulkTagOperation(
+                    cancellation.cancelled,
+                    processed,
+                    failed,
+                );
+            });
+    }
+
+    _finishBulkTagOperation(wasCancelled, processed, failed) {
+        this._bulkTagOperation = null;
+        this._headerView._bulkTagEditor.setRunning(false);
+        this._headerView._navigate();
+
+        const succeeded = processed - failed;
+        if (wasCancelled) {
+            this.showSuccess(
+                `Cancelled: ${succeeded} post(s) updated, ${failed} failed before stopping.`,
+            );
+        } else if (failed > 0) {
+            this.showError(
+                `Finished with errors: ${succeeded} post(s) updated, ${failed} failed.`,
+            );
+        } else {
+            this.showSuccess(`Done: ${succeeded} post(s) updated.`);
         }
     }
 
@@ -150,7 +323,7 @@ class PostListController {
                     this._ctx.parameters.query,
                     offset,
                     limit,
-                    fields
+                    fields,
                 );
             },
             pageRenderer: (pageCtx) => {
@@ -158,7 +331,7 @@ class PostListController {
                     canViewPosts: api.hasPrivilege("posts:view"),
                     canBulkEditTags: api.hasPrivilege("posts:bulk-edit:tags"),
                     canBulkEditSafety: api.hasPrivilege(
-                        "posts:bulk-edit:safety"
+                        "posts:bulk-edit:safety",
                     ),
                     canBulkDelete: api.hasPrivilege("posts:bulk-edit:delete"),
                     bulkEdit: {
@@ -171,10 +344,10 @@ class PostListController {
                 view.addEventListener("tag", (e) => this._evtTag(e));
                 view.addEventListener("untag", (e) => this._evtUntag(e));
                 view.addEventListener("changeSafety", (e) =>
-                    this._evtChangeSafety(e)
+                    this._evtChangeSafety(e),
                 );
                 view.addEventListener("markForDeletion", (e) =>
-                    this._evtMarkForDeletion(e)
+                    this._evtMarkForDeletion(e),
                 );
                 return view;
             },
