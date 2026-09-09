@@ -229,10 +229,17 @@ function bundleConfig() {
         }
         return build_info.trim();
     }
+    function getBuildDate() {
+        const buildDate = process.env.BUILD_DATE;
+        const date = buildDate
+            ? new Date(parseInt(buildDate, 10) * 1000)
+            : new Date();
+        return date.toUTCString();
+    }
     const config = {
         meta: {
             version: getVersion(),
-            buildDate: new Date().toUTCString()
+            buildDate: getBuildDate()
         },
         environment: environment
     };

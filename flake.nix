@@ -21,7 +21,10 @@
   in {
     packages = forAllSystems (pkgs: rec {
       szurubooru-server = pkgs.callPackage ./server/package.nix {};
-      szurubooru-client = pkgs.callPackage ./client/package.nix {};
+      szurubooru-client = pkgs.callPackage ./client/package.nix {
+        rev = self.shortRev or self.dirtyShortRev or "unknown";
+        buildDate = self.lastModified;
+      };
       default = szurubooru-server;
     });
   };

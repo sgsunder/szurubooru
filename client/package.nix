@@ -2,18 +2,21 @@
   lib,
   buildNpmPackage,
   writeText,
+  rev ? "unknown",
+  buildDate ? 315532800, # 1980-01-01
 }: let
   src = ./.;
-  version = (lib.importTOML ./../server/pyproject.toml).project.version;
 in
   buildNpmPackage {
     pname = "szurubooru-client";
-    inherit src version;
+    inherit src;
+    version = rev;
 
     npmDepsHash = "sha256-HtcitZl2idgVleB6c0KCTSNLxh7hP8/G/RGdMaQG3iI=";
     makeCacheWritable = true;
 
-    BUILD_INFO = "nixpkgs-v${version}";
+    BUILD_INFO = "nixpkgs-${rev}";
+    BUILD_DATE = toString buildDate;
 
     npmBuildFlags = [
       "--gzip"
