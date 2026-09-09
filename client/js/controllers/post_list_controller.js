@@ -3,6 +3,7 @@
 const router = require("../router.js");
 const api = require("../api.js");
 const misc = require("../util/misc.js");
+const confirmDialog = require("../util/confirm_dialog.js");
 const settings = require("../models/settings.js");
 const uri = require("../util/uri.js");
 const PostList = require("../models/post_list.js");
@@ -187,20 +188,25 @@ class PostListController {
 
                 const verb = mode === "add" ? "add" : "remove";
                 const prep = mode === "add" ? "to" : "from";
-                const queryDisplay = this._ctx.parameters.query
-                    ? `"${this._ctx.parameters.query}"`
+                const queryBlock = this._ctx.parameters.query
+                    ? { monospace: true, text: this._ctx.parameters.query }
                     : "(empty query — this matches ALL posts on the site)";
-                const tagsDisplay = tags.join("\n");
-                const message =
-                    `This will ${verb} the tag(s):\n\n${tagsDisplay}\n\n` +
-                    `${prep} all ${response.total} post(s) matching the ` +
-                    `search query:\n\n${queryDisplay}\n\n` +
-                    "Continue?";
-                if (!confirm(message)) {
-                    return;
-                }
+                const blocks = [
+                    `This will ${verb} the tag(s):`,
+                    { monospace: true, text: tags.join("\n") },
+                    `${prep} all ${response.total} post(s) matching the search query:`,
+                    queryBlock,
+                    "Continue?",
+                ];
 
-                this._runBulkTagOperation(tags, mode, response.total);
+                return confirmDialog
+                    .showConfirmDialog(blocks)
+                    .then((confirmed) => {
+                        if (!confirmed) {
+                            return;
+                        }
+                        this._runBulkTagOperation(tags, mode, response.total);
+                    });
             })
             .catch((error) => window.alert(error.message));
     }
