@@ -9,6 +9,7 @@ const misc = require("../util/misc.js");
 const template = views.getTemplate("post-readonly-sidebar");
 const scoreTemplate = views.getTemplate("score");
 const favTemplate = views.getTemplate("fav");
+const inspireTemplate = views.getTemplate("inspire");
 
 class PostReadonlySidebarControl extends events.EventTarget {
     constructor(hostNode, post, postContentControl) {
@@ -19,6 +20,9 @@ class PostReadonlySidebarControl extends events.EventTarget {
 
         post.addEventListener("changeFavorite", (e) => this._evtChangeFav(e));
         post.addEventListener("changeScore", (e) => this._evtChangeScore(e));
+        post.addEventListener("changeInspiration", (e) =>
+            this._evtChangeInspiration(e)
+        );
 
         views.replaceContent(
             this._hostNode,
@@ -36,8 +40,13 @@ class PostReadonlySidebarControl extends events.EventTarget {
 
         this._installFav();
         this._installScore();
+        this._installInspire();
         this._installFitButtons();
         this._syncFitButton();
+
+        views.monitorNodeRemoval(this._inspireContainerNode, () =>
+            this._stopInspireCooldownTimer()
+        );
     }
 
     get _scoreContainerNode() {
@@ -62,6 +71,14 @@ class PostReadonlySidebarControl extends events.EventTarget {
 
     get _remFavButtonNode() {
         return this._hostNode.querySelector(".remove-favorite");
+    }
+
+    get _inspireContainerNode() {
+        return this._hostNode.querySelector(".inspire-container");
+    }
+
+    get _inspireButtonNode() {
+        return this._hostNode.querySelector(".inspire:not(.inactive)");
     }
 
     get _fitBothButtonNode() {
@@ -118,6 +135,52 @@ class PostReadonlySidebarControl extends events.EventTarget {
             this._remFavButtonNode.addEventListener("click", (e) =>
                 this._evtRemoveFromFavoritesClick(e)
             );
+        }
+    }
+
+    _installInspire() {
+        this._stopInspireCooldownTimer();
+
+        const cooldownSec = api.getInspirationCooldownSec();
+        const lastTime = api.user && api.user.lastInspirationTime;
+        const cooldownEndTime = lastTime
+            ? new Date(new Date(lastTime).getTime() + cooldownSec * 1000)
+            : null;
+        const onCooldown =
+            api.user !== null &&
+            cooldownEndTime !== null &&
+            cooldownEndTime > new Date();
+
+        views.replaceContent(
+            this._inspireContainerNode,
+            inspireTemplate({
+                inspirationCount: this._post.inspirationCount,
+                canInspire: api.hasPrivilege("posts:inspire"),
+                onCooldown: onCooldown,
+                cooldownMessage: onCooldown
+                    ? "You can inspire again " +
+                      misc.formatRelativeTime(cooldownEndTime.toISOString())
+                    : "",
+            })
+        );
+
+        if (this._inspireButtonNode) {
+            this._inspireButtonNode.addEventListener("click", (e) =>
+                this._evtInspireClick(e)
+            );
+        }
+
+        if (onCooldown) {
+            this._inspireCooldownTimer = window.setInterval(() => {
+                this._installInspire();
+            }, 5000);
+        }
+    }
+
+    _stopInspireCooldownTimer() {
+        if (this._inspireCooldownTimer) {
+            window.clearInterval(this._inspireCooldownTimer);
+            this._inspireCooldownTimer = null;
         }
     }
 
@@ -211,12 +274,27 @@ class PostReadonlySidebarControl extends events.EventTarget {
         );
     }
 
+    _evtInspireClick(e) {
+        e.preventDefault();
+        this.dispatchEvent(
+            new CustomEvent("inspire", {
+                detail: {
+                    post: this._post,
+                },
+            })
+        );
+    }
+
     _evtChangeFav(e) {
         this._installFav();
     }
 
     _evtChangeScore(e) {
         this._installScore();
+    }
+
+    _evtChangeInspiration(e) {
+        this._installInspire();
     }
 }
 

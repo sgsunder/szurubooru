@@ -48,6 +48,7 @@ class PostEditSidebarControl extends events.EventTarget {
                 canDeletePosts: api.hasPrivilege("posts:delete"),
                 canFeaturePosts: api.hasPrivilege("posts:feature"),
                 canMergePosts: api.hasPrivilege("posts:merge"),
+                canResetInspiration: api.hasPrivilege("posts:inspire:reset"),
             })
         );
 
@@ -205,6 +206,12 @@ class PostEditSidebarControl extends events.EventTarget {
             );
         }
 
+        if (this._resetInspirationLinkNode) {
+            this._resetInspirationLinkNode.addEventListener("click", (e) =>
+                this._evtResetInspirationClick(e)
+            );
+        }
+
         if (this._deleteLinkNode) {
             this._deleteLinkNode.addEventListener("click", (e) =>
                 this._evtDeleteClick(e)
@@ -311,6 +318,19 @@ class PostEditSidebarControl extends events.EventTarget {
                 },
             })
         );
+    }
+
+    _evtResetInspirationClick(e) {
+        e.preventDefault();
+        if (confirm("Are you sure you want to reset the inspiration counter?")) {
+            this.dispatchEvent(
+                new CustomEvent("resetInspiration", {
+                    detail: {
+                        post: this._post,
+                    },
+                })
+            );
+        }
     }
 
     _evtDeleteClick(e) {
@@ -630,6 +650,10 @@ class PostEditSidebarControl extends events.EventTarget {
 
     get _mergeLinkNode() {
         return this._formNode.querySelector(".management .merge");
+    }
+
+    get _resetInspirationLinkNode() {
+        return this._formNode.querySelector(".management .reset-inspiration");
     }
 
     get _deleteLinkNode() {

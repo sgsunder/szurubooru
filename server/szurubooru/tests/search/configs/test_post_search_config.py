@@ -31,6 +31,18 @@ def score_factory(user_factory):
 
 
 @pytest.fixture
+def inspiration_factory(user_factory):
+    def factory(post, user=None):
+        return model.PostInspiration(
+            post=post,
+            user=user or user_factory(),
+            time=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+
+    return factory
+
+
+@pytest.fixture
 def note_factory():
     def factory(text="..."):
         return model.PostNote(polygon="...", text=text)
@@ -332,6 +344,37 @@ def test_filter_by_favorite_count(
             fav_factory(post=post3),
             fav_factory(post=post3),
             fav_factory(post=post3),
+            post1,
+            post2,
+            post3,
+        ]
+    )
+    db.session.flush()
+    verify_unpaged(input, expected_post_ids)
+
+
+@pytest.mark.parametrize(
+    "input,expected_post_ids",
+    [
+        ("inspiration-count:1", [1]),
+        ("inspiration-count:3", [3]),
+        ("inspiration-count:1,3", [1, 3]),
+    ],
+)
+def test_filter_by_inspiration_count(
+    verify_unpaged, post_factory, inspiration_factory, input, expected_post_ids
+):
+    post1 = post_factory(id=1)
+    post2 = post_factory(id=2)
+    post3 = post_factory(id=3)
+    db.session.add_all(
+        [
+            inspiration_factory(post=post1),
+            inspiration_factory(post=post2),
+            inspiration_factory(post=post2),
+            inspiration_factory(post=post3),
+            inspiration_factory(post=post3),
+            inspiration_factory(post=post3),
             post1,
             post2,
             post3,
@@ -701,6 +744,37 @@ def test_filter_by_feature_date(
 
 
 @pytest.mark.parametrize(
+    "input,expected_post_ids",
+    [
+        ("inspiration-date:2014", [1]),
+        ("inspiration-date:2016", [3]),
+        ("inspiration-date:2014,2016", [1, 3]),
+        ("inspiration-time:2014", [1]),
+        ("inspiration-time:2016", [3]),
+        ("last-inspiration-time:2014", [1]),
+        ("last-inspiration-time:2016", [3]),
+    ],
+)
+def test_filter_by_inspiration_date(
+    verify_unpaged, post_factory, inspiration_factory, input, expected_post_ids
+):
+    post1 = post_factory(id=1)
+    post2 = post_factory(id=2)
+    post3 = post_factory(id=3)
+    inspiration1 = inspiration_factory(post=post1)
+    inspiration2 = inspiration_factory(post=post2)
+    inspiration3 = inspiration_factory(post=post3)
+    inspiration1.time = datetime(2014, 1, 1)
+    inspiration2.time = datetime(2015, 1, 1)
+    inspiration3.time = datetime(2016, 1, 1)
+    db.session.add_all(
+        [post1, post2, post3, inspiration1, inspiration2, inspiration3]
+    )
+    db.session.flush()
+    verify_unpaged(input, expected_post_ids)
+
+
+@pytest.mark.parametrize(
     "input",
     [
         "sort:random",
@@ -732,6 +806,10 @@ def test_filter_by_feature_date(
         "sort:fav-time",
         "sort:feature-date",
         "sort:feature-time",
+        "sort:inspiration-count",
+        "sort:inspiration-date",
+        "sort:inspiration-time",
+        "sort:last-inspiration-time",
     ],
 )
 def test_sort_tokens(verify_unpaged, post_factory, input):

@@ -18,6 +18,12 @@ thumbnails:
     post_width: 300
     post_height: 300
 
+# how often (in seconds) a single user may inspire a post; the cooldown is
+# shared across all posts, i.e. inspiring one post starts the cooldown for
+# inspiring any other post
+inspirations:
+    cooldown_seconds: 3600
+
 # settings used to download files from the web on behalf of the api users
 user_agent: Mozilla/5.0 (compatible; szurubooru/2.5)
 max_dl_filesize: 2.0E+9 # maximum filesize limit in bytes
@@ -112,6 +118,8 @@ privileges:
     'posts:score':                  regular
     'posts:merge':                  moderator
     'posts:favorite':               regular
+    'posts:inspire':                regular
+    'posts:inspire:reset':          moderator
     'posts:bulk-edit:tags':         power
     'posts:bulk-edit:safety':       power
     'posts:bulk-edit:delete':       power

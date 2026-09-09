@@ -154,6 +154,7 @@ def test_serialize_user(user_factory):
             "rank": "administrator",
             "creationTime": datetime(1997, 1, 1, 0, 0),
             "lastLoginTime": None,
+            "lastInspirationTime": None,
             "avatarStyle": "manual",
             "avatarUrl": "https://example.com/avatar.png",
             "likedPostCount": 66,

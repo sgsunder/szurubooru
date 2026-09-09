@@ -189,6 +189,8 @@ class PostSerializer(serialization.BaseSerializer):
             "ownFavorite": self.serialize_own_favorite,
             "tagCount": self.serialize_tag_count,
             "favoriteCount": self.serialize_favorite_count,
+            "inspirationCount": self.serialize_inspiration_count,
+            "lastInspirationTime": self.serialize_last_inspiration_time,
             "commentCount": self.serialize_comment_count,
             "noteCount": self.serialize_note_count,
             "relationCount": self.serialize_relation_count,
@@ -297,6 +299,12 @@ class PostSerializer(serialization.BaseSerializer):
 
     def serialize_favorite_count(self) -> Any:
         return self.post.favorite_count
+
+    def serialize_inspiration_count(self) -> Any:
+        return self.post.inspiration_count
+
+    def serialize_last_inspiration_time(self) -> Any:
+        return self.post.last_inspiration_time
 
     def serialize_comment_count(self) -> Any:
         return self.post.comment_count

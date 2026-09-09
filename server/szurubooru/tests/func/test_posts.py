@@ -267,6 +267,8 @@ def test_serialize_post(
             "ownScore": -1,
             "tagCount": 2,
             "favoriteCount": 1,
+            "inspirationCount": 0,
+            "lastInspirationTime": None,
             "commentCount": 2,
             "noteCount": 0,
             "featureCount": 1,

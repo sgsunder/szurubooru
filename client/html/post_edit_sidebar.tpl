@@ -117,7 +117,7 @@
             </section>
         <% } %>
 
-        <% if (ctx.canFeaturePosts || ctx.canDeletePosts || ctx.canMergePosts) { %>
+        <% if (ctx.canFeaturePosts || ctx.canDeletePosts || ctx.canMergePosts || ctx.canResetInspiration) { %>
             <section class='management'>
                 <ul>
                     <% if (ctx.canFeaturePosts) { %>
@@ -125,6 +125,9 @@
                     <% } %>
                     <% if (ctx.canMergePosts) { %>
                         <li><a href class='merge'>Merge this post with another</a></li>
+                    <% } %>
+                    <% if (ctx.canResetInspiration) { %>
+                        <li><a href class='reset-inspiration'>Reset inspiration counter</a></li>
                     <% } %>
                     <% if (ctx.canDeletePosts) { %>
                         <li><a href class='delete'>Delete this post</a></li>

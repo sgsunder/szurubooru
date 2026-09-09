@@ -85,6 +85,14 @@ class PostMainController extends BasePostController {
                         this._evtScorePost(e)
                     );
                     this._view.sidebarControl.addEventListener(
+                        "inspire",
+                        (e) => this._evtInspirePost(e)
+                    );
+                    this._view.sidebarControl.addEventListener(
+                        "resetInspiration",
+                        (e) => this._evtResetInspiration(e)
+                    );
+                    this._view.sidebarControl.addEventListener(
                         "fitModeChange",
                         (e) => this._evtFitModeChange(e)
                     );
@@ -276,6 +284,30 @@ class PostMainController extends BasePostController {
         e.detail.post
             .addToFavorites()
             .catch((error) => window.alert(error.message));
+    }
+
+    _evtInspirePost(e) {
+        if (!api.hasPrivilege("posts:inspire")) {
+            return;
+        }
+        e.detail.post.inspire().catch((error) => window.alert(error.message));
+    }
+
+    _evtResetInspiration(e) {
+        this._view.sidebarControl.disableForm();
+        this._view.sidebarControl.clearMessages();
+        e.detail.post.resetInspiration().then(
+            () => {
+                this._view.sidebarControl.showSuccess(
+                    "Inspiration counter reset."
+                );
+                this._view.sidebarControl.enableForm();
+            },
+            (error) => {
+                this._view.sidebarControl.showError(error.message);
+                this._view.sidebarControl.enableForm();
+            }
+        );
     }
 
     _evtUnfavoritePost(e) {
