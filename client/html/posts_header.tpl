@@ -18,6 +18,12 @@
             %><a href class='mousetrap button append open'>Mass tag</a><%
             %><%= ctx.makeTextInput({name: 'tag', value: ctx.parameters.tag}) %><%
             %><input class='mousetrap start' type='submit' value='Start tagging'/><%
+            %><a href class='mousetrap button append tag-all'>Tag all</a><%
+            %><a href class='mousetrap button append untag-all'>Untag all</a><%
+            %><span class='bulk-edit-tags-progress'><%
+                %><progress class='progress-bar' value='0' max='1'></progress><%
+                %><span class='progress-text'></span><%
+            %></span><%
             %><a href class='mousetrap button append close'>Stop tagging</a><%
         %></form><%
     %><% } %><%

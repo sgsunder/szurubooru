@@ -72,6 +72,7 @@ class BulkSafetyEditor extends BulkEditor {
 class BulkTagEditor extends BulkEditor {
     constructor(hostNode) {
         super(hostNode);
+        this._running = false;
         this._autoCompleteControl = new TagAutoCompleteControl(
             this._inputNode,
             {
@@ -101,6 +102,12 @@ class BulkTagEditor extends BulkEditor {
         this._hostNode.addEventListener("submit", (e) =>
             this._evtFormSubmit(e)
         );
+        this._tagAllButtonNode.addEventListener("click", (e) =>
+            this._evtTagAllClick(e)
+        );
+        this._untagAllButtonNode.addEventListener("click", (e) =>
+            this._evtUntagAllClick(e)
+        );
     }
 
     get value() {
@@ -109,6 +116,22 @@ class BulkTagEditor extends BulkEditor {
 
     get _inputNode() {
         return this._hostNode.querySelector("input[name=tag]");
+    }
+
+    get _tagAllButtonNode() {
+        return this._hostNode.querySelector(".tag-all");
+    }
+
+    get _untagAllButtonNode() {
+        return this._hostNode.querySelector(".untag-all");
+    }
+
+    get _progressBarNode() {
+        return this._hostNode.querySelector(".progress-bar");
+    }
+
+    get _progressTextNode() {
+        return this._hostNode.querySelector(".progress-text");
     }
 
     focus() {
@@ -120,9 +143,51 @@ class BulkTagEditor extends BulkEditor {
         this._inputNode.blur();
     }
 
+    setRunning(running) {
+        this._running = running;
+        this._hostNode.classList.toggle("running", running);
+        this._closeLinkNode.textContent = running
+            ? "Cancel"
+            : "Stop tagging";
+        if (!running) {
+            this.setProgress(0, 0, 0);
+        }
+    }
+
+    setProgress(processed, total, etaSeconds) {
+        this._progressBarNode.max = Math.max(total, 1);
+        this._progressBarNode.value = processed;
+        this._progressTextNode.textContent = total
+            ? `${processed} / ${total} posts — ${this._formatEta(
+                  etaSeconds
+              )} remaining`
+            : "";
+    }
+
+    _formatEta(seconds) {
+        seconds = Math.max(0, Math.round(seconds || 0));
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    }
+
     _evtFormSubmit(e) {
         e.preventDefault();
         this.dispatchEvent(new CustomEvent("submit", { detail: {} }));
+    }
+
+    _evtTagAllClick(e) {
+        e.preventDefault();
+        this.dispatchEvent(
+            new CustomEvent("tagAll", { detail: { tagText: this.value } })
+        );
+    }
+
+    _evtUntagAllClick(e) {
+        e.preventDefault();
+        this.dispatchEvent(
+            new CustomEvent("untagAll", { detail: { tagText: this.value } })
+        );
     }
 
     _evtOpenLinkClick(e) {
@@ -134,6 +199,10 @@ class BulkTagEditor extends BulkEditor {
 
     _evtCloseLinkClick(e) {
         e.preventDefault();
+        if (this._running) {
+            this.dispatchEvent(new CustomEvent("cancel", { detail: {} }));
+            return;
+        }
         this._inputNode.value = "";
         this.toggleOpen(false);
         this.blur();
@@ -233,6 +302,24 @@ class PostsHeaderView extends events.EventTarget {
             editor.addEventListener("close", (e) => {
                 this._closeAndShowAllBulkEditors();
                 this._navigate();
+            });
+        }
+
+        if (this._bulkTagEditor) {
+            this._bulkTagEditor.addEventListener("tagAll", (e) => {
+                this.dispatchEvent(
+                    new CustomEvent("tagAll", { detail: e.detail })
+                );
+            });
+            this._bulkTagEditor.addEventListener("untagAll", (e) => {
+                this.dispatchEvent(
+                    new CustomEvent("untagAll", { detail: e.detail })
+                );
+            });
+            this._bulkTagEditor.addEventListener("cancel", (e) => {
+                this.dispatchEvent(
+                    new CustomEvent("cancelTagAll", { detail: {} })
+                );
             });
         }
 
