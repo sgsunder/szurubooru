@@ -49,7 +49,10 @@
     ];
 
     makeWrapperArgs = [
-      "--prefix PATH : ${lib.makeBinPath [ffmpeg-headless]}"
+      "--prefix"
+      "PATH"
+      ":"
+      "${lib.makeBinPath [ffmpeg-headless]}"
     ];
 
     postInstall = ''
