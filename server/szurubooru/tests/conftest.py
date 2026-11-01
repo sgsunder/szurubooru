@@ -12,6 +12,7 @@ import sqlalchemy.orm as sa_orm
 from sqlalchemy import event
 
 from szurubooru import config, db, model, rest
+from szurubooru.func import cache
 
 try:
     import testing.postgresql
@@ -271,6 +272,15 @@ def _restore_config():
         yield
     finally:
         config.config = original
+
+
+@pytest.fixture(autouse=True)
+def _purge_cache():
+    cache.purge()
+    try:
+        yield
+    finally:
+        cache.purge()
 
 
 @pytest.fixture
