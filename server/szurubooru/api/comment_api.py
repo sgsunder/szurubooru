@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from typing import Dict
 
-from szurubooru import model, rest, search
+from szurubooru import errors, model, rest, search
 from szurubooru.func import (
     auth,
     comments,
+    inspirations,
     posts,
     scores,
     serialization,
@@ -86,6 +87,28 @@ def delete_comment(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
     ctx.session.delete(comment)
     ctx.session.commit()
     return {}
+
+
+@rest.routes.post("/comment/(?P<comment_id>[^/]+)/inspire/?")
+def convert_comment_to_inspiration(
+    ctx: rest.Context, params: Dict[str, str]
+) -> rest.Response:
+    auth.verify_privilege(ctx.user, "posts:inspire")
+    comment = _get_comment(params)
+    versions.verify_version(comment, ctx)
+    if not comment.user_id or comment.user_id != ctx.user.user_id:
+        raise errors.AuthError(
+            "Only the author of a comment can convert it to an inspiration."
+        )
+    post = comment.post
+    inspirations.add_inspiration(
+        post, ctx.user, time=comment.creation_time, bypass_cooldown=True
+    )
+    ctx.session.delete(comment)
+    ctx.session.commit()
+    return posts.serialize_post(
+        post, ctx.user, options=serialization.get_serialization_options(ctx)
+    )
 
 
 @rest.routes.put("/comment/(?P<comment_id>[^/]+)/score/?")

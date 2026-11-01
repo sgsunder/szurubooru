@@ -42,20 +42,32 @@ class PostMainController extends BasePostController {
                 }
 
                 const prevPostId = aroundResponse.prev
-                        ? aroundResponse.prev.id
-                        : null;
+                    ? aroundResponse.prev.id
+                    : null;
                 const nextPostId = aroundResponse.next
-                        ? aroundResponse.next.id
-                        : null;
+                    ? aroundResponse.next.id
+                    : null;
 
                 // preload nearby posts
                 if (prevPostId) {
-                    Post.get(prevPostId, { noProgress: true }).then(misc.preloadPostImages);
-                    PostList.getAround(prevPostId, parameters ? parameters.query : null, { noProgress: true });
+                    Post.get(prevPostId, { noProgress: true }).then(
+                        misc.preloadPostImages
+                    );
+                    PostList.getAround(
+                        prevPostId,
+                        parameters ? parameters.query : null,
+                        { noProgress: true }
+                    );
                 }
                 if (nextPostId) {
-                    Post.get(nextPostId, { noProgress: true }).then(misc.preloadPostImages);
-                    PostList.getAround(nextPostId, parameters ? parameters.query : null, { noProgress: true });
+                    Post.get(nextPostId, { noProgress: true }).then(
+                        misc.preloadPostImages
+                    );
+                    PostList.getAround(
+                        nextPostId,
+                        parameters ? parameters.query : null,
+                        { noProgress: true }
+                    );
                 }
 
                 this._post = post;
@@ -135,6 +147,10 @@ class PostMainController extends BasePostController {
                     this._view.commentListControl.addEventListener(
                         "delete",
                         (e) => this._evtDeleteComment(e)
+                    );
+                    this._view.commentListControl.addEventListener(
+                        "convert",
+                        (e) => this._evtConvertComment(e)
                     );
                 }
             },
@@ -266,6 +282,22 @@ class PostMainController extends BasePostController {
         e.detail.comment
             .delete()
             .catch((error) => window.alert(error.message));
+    }
+
+    _evtConvertComment(e) {
+        e.detail.comment.convertToInspiration().then(
+            (response) => {
+                this._post._updateFromResponse(response);
+                this._post.dispatchEvent(
+                    new CustomEvent("changeInspiration", {
+                        detail: {
+                            post: this._post,
+                        },
+                    })
+                );
+            },
+            (error) => window.alert(error.message)
+        );
     }
 
     _evtScorePost(e) {

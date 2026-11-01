@@ -83,6 +83,31 @@ class Comment extends events.EventTarget {
         });
     }
 
+    convertToInspiration() {
+        return api
+            .post(uri.formatApiLink("comment", this.id, "inspire"), {
+                version: this._version,
+            })
+            .then((response) => {
+                if (
+                    api.user &&
+                    (!api.user.lastInspirationTime ||
+                        new Date(this._creationTime) >
+                            new Date(api.user.lastInspirationTime))
+                ) {
+                    api.user.lastInspirationTime = this._creationTime;
+                }
+                this.dispatchEvent(
+                    new CustomEvent("delete", {
+                        detail: {
+                            comment: this,
+                        },
+                    })
+                );
+                return Promise.resolve(response);
+            });
+    }
+
     delete() {
         return api
             .delete(uri.formatApiLink("comment", this.id), {

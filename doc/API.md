@@ -1804,6 +1804,36 @@ data.
 
     Deletes existing comment.
 
+## Converting comment to inspiration
+- **Request**
+
+    `POST /comment/<id>/inspire`
+
+- **Input**
+
+    ```json5
+    {
+        "version": <version>
+    }
+    ```
+
+- **Output**
+
+    The updated [post resource](#post) of the comment's post.
+
+- **Errors**
+
+    - the version is outdated
+    - the comment does not exist
+    - the comment was not written by the authenticated user
+    - privileges are too low (requires the `posts:inspire` privilege)
+
+- **Description**
+
+    Converts the authenticated user's own comment to an inspiration of the
+    comment's post. The inspiration keeps the comment's creation time, the
+    comment is deleted, and the inspiration cooldown is not enforced.
+
 ## Rating comment
 - **Request**
 

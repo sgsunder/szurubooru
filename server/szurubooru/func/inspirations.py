@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from szurubooru import config, db, errors, model
 
@@ -11,13 +12,18 @@ def _get_cooldown_seconds() -> int:
     return int(config.config["inspirations"]["cooldown_seconds"])
 
 
-def add_inspiration(post: model.Post, user: model.User) -> None:
+def add_inspiration(
+    post: model.Post,
+    user: model.User,
+    time: Optional[datetime] = None,
+    bypass_cooldown: bool = False,
+) -> None:
     assert post
     assert user
     if not user.user_id:
         raise errors.AuthError("Must be logged in to do this.")
     last_time = user.last_inspiration_time
-    if last_time is not None:
+    if last_time is not None and not bypass_cooldown:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         cooldown = timedelta(seconds=_get_cooldown_seconds())
         if now - last_time < cooldown:
@@ -27,7 +33,7 @@ def add_inspiration(post: model.Post, user: model.User) -> None:
     inspiration = model.PostInspiration()
     inspiration.post = post
     inspiration.user = user
-    inspiration.time = datetime.now(timezone.utc).replace(tzinfo=None)
+    inspiration.time = time or datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.add(inspiration)
 
 

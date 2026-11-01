@@ -24,6 +24,7 @@ class CommentsPageView extends events.EventTarget {
             events.proxyEvent(commentListControl, this, "submit");
             events.proxyEvent(commentListControl, this, "score");
             events.proxyEvent(commentListControl, this, "delete");
+            events.proxyEvent(commentListControl, this, "convert");
         }
 
         views.replaceContent(this._hostNode, sourceNode);
