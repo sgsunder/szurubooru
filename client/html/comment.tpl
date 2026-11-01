@@ -41,12 +41,23 @@
 
                 %><span class='score-container'></span><%
 
-                %><% if (ctx.canEditComment || ctx.canDeleteComment) { %><%
+                %><% if (ctx.canEditComment || ctx.canDeleteComment || ctx.canInspireComment) { %><%
                     %><span class='action-container'><%
                         %><% if (ctx.canEditComment) { %><%
                             %><a href class='edit'><%
                                 %><i class='fa fa-pencil'></i>&nbsp;edit<%
                             %></a><%
+                        %><% } %><%
+
+                        %><% if (ctx.canInspireComment) { %><%
+                            %><a href class='inspire'><%
+                                %><i class='fa fa-star'></i>&nbsp;inspire<%
+                            %></a><%
+                            %><span class='inspire-confirm'><%
+                                %>convert to inspiration? <%
+                                %><a href class='inspire-yes'>yes</a> / <%
+                                %><a href class='inspire-no'>no</a><%
+                            %></span><%
                         %><% } %><%
 
                         %><% if (ctx.canDeleteComment) { %><%

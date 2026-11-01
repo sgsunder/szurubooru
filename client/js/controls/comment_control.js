@@ -32,6 +32,8 @@ class CommentControl extends events.EventTarget {
                 canViewUsers: api.hasPrivilege("users:view"),
                 canEditComment: api.hasPrivilege(`comments:edit:${infix}`),
                 canDeleteComment: api.hasPrivilege(`comments:delete:${infix}`),
+                canInspireComment:
+                    isLoggedIn && api.hasPrivilege("posts:inspire"),
                 onlyEditing: onlyEditing,
             })
         );
@@ -44,6 +46,18 @@ class CommentControl extends events.EventTarget {
         if (this._deleteButtonNode) {
             this._deleteButtonNode.addEventListener("click", (e) =>
                 this._evtDeleteClick(e)
+            );
+        }
+
+        if (this._inspireButtonNode) {
+            this._inspireButtonNode.addEventListener("click", (e) =>
+                this._evtInspireClick(e)
+            );
+            this._inspireYesButtonNode.addEventListener("click", (e) =>
+                this._evtInspireConfirmClick(e)
+            );
+            this._inspireNoButtonNode.addEventListener("click", (e) =>
+                this._evtInspireCancelClick(e)
             );
         }
 
@@ -93,6 +107,22 @@ class CommentControl extends events.EventTarget {
 
     get _deleteButtonNode() {
         return this._hostNode.querySelector(".delete");
+    }
+
+    get _inspireButtonNode() {
+        return this._hostNode.querySelector("a.inspire");
+    }
+
+    get _inspireYesButtonNode() {
+        return this._hostNode.querySelector("a.inspire-yes");
+    }
+
+    get _inspireNoButtonNode() {
+        return this._hostNode.querySelector("a.inspire-no");
+    }
+
+    get _actionContainerNode() {
+        return this._hostNode.querySelector(".action-container");
     }
 
     get _upvoteButtonNode() {
@@ -203,6 +233,28 @@ class CommentControl extends events.EventTarget {
         }
         this.dispatchEvent(
             new CustomEvent("delete", {
+                detail: {
+                    comment: this._comment,
+                },
+            })
+        );
+    }
+
+    _evtInspireClick(e) {
+        e.preventDefault();
+        this._actionContainerNode.classList.add("confirming-inspire");
+    }
+
+    _evtInspireCancelClick(e) {
+        e.preventDefault();
+        this._actionContainerNode.classList.remove("confirming-inspire");
+    }
+
+    _evtInspireConfirmClick(e) {
+        e.preventDefault();
+        this._actionContainerNode.classList.remove("confirming-inspire");
+        this.dispatchEvent(
+            new CustomEvent("convert", {
                 detail: {
                     comment: this._comment,
                 },

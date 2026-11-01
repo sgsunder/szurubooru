@@ -50,6 +50,7 @@ class CommentsController {
                 view.addEventListener("submit", (e) => this._evtUpdate(e));
                 view.addEventListener("score", (e) => this._evtScore(e));
                 view.addEventListener("delete", (e) => this._evtDelete(e));
+                view.addEventListener("convert", (e) => this._evtConvert(e));
                 return view;
             },
         });
@@ -73,6 +74,12 @@ class CommentsController {
     _evtDelete(e) {
         e.detail.comment
             .delete()
+            .catch((error) => window.alert(error.message));
+    }
+
+    _evtConvert(e) {
+        e.detail.comment
+            .convertToInspiration()
             .catch((error) => window.alert(error.message));
     }
 }

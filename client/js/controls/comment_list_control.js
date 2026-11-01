@@ -41,6 +41,7 @@ class CommentListControl extends events.EventTarget {
         events.proxyEvent(commentControl, this, "submit");
         events.proxyEvent(commentControl, this, "score");
         events.proxyEvent(commentControl, this, "delete");
+        events.proxyEvent(commentControl, this, "convert");
         this._commentIdToNode[comment.id] = commentListItemNode;
         this._commentListNode.appendChild(commentListItemNode);
     }
