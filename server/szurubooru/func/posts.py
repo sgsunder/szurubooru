@@ -908,6 +908,16 @@ def merge_posts(
     merge_favorites(source_post.post_id, target_post.post_id)
     merge_relations(source_post.post_id, target_post.post_id)
 
+    def merge_sources() -> None:
+        lines: List[str] = []
+        for post in (target_post, source_post):
+            for line in (post.source or "").split("\n"):
+                if line and line not in lines:
+                    lines.append(line)
+        update_post_source(target_post, "\n".join(lines))
+
+    merge_sources()
+
     def transfer_flags(source_post_id: int, target_post_id: int) -> None:
         target = get_post_by_id(target_post_id)
         source = get_post_by_id(source_post_id)

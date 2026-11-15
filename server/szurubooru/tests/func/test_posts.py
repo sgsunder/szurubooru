@@ -941,6 +941,19 @@ def test_merge_posts_with_itself(post_factory, config_injector):
         posts.merge_posts(source_post, source_post, False)
 
 
+def test_merge_posts_concatenates_sources(post_factory, config_injector):
+    config_injector({"delete_source_files": False})
+    source_post = post_factory()
+    target_post = post_factory()
+    source_post.source = "b\nc"
+    target_post.source = "a\nb"
+    db.session.add_all([source_post, target_post])
+    db.session.flush()
+    posts.merge_posts(source_post, target_post, False)
+    db.session.flush()
+    assert posts.get_post_by_id(target_post.post_id).source == "a\nb\nc"
+
+
 def test_merge_posts_moves_tags(post_factory, tag_factory, config_injector):
     config_injector({"delete_source_files": False})
     source_post = post_factory()
