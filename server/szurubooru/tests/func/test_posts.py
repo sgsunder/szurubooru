@@ -17,18 +17,28 @@ from szurubooru.func import (
 )
 
 
+@pytest.fixture(autouse=True)
+def fixed_content_token():
+    with patch(
+        "szurubooru.func.posts.generate_content_token",
+        return_value="0123456789abcdef",
+    ):
+        yield
+
+
 @pytest.mark.parametrize(
     "input_mime_type,expected_url",
     [
-        ("image/jpeg", "http://example.com/posts/1_244c8840887984c4.jpg"),
-        ("image/gif", "http://example.com/posts/1_244c8840887984c4.gif"),
-        ("totally/unknown", "http://example.com/posts/1_244c8840887984c4.dat"),
+        ("image/jpeg", "http://example.com/posts/1_0123456789abcdef.jpg"),
+        ("image/gif", "http://example.com/posts/1_0123456789abcdef.gif"),
+        ("totally/unknown", "http://example.com/posts/1_0123456789abcdef.dat"),
     ],
 )
 def test_get_post_url(input_mime_type, expected_url, config_injector):
     config_injector({"data_url": "http://example.com/", "secret": "test"})
     post = model.Post()
     post.post_id = 1
+    post.content_token = "0123456789abcdef"
     post.mime_type = input_mime_type
     assert posts.get_post_content_url(post) == expected_url
 
@@ -38,25 +48,27 @@ def test_get_post_thumbnail_url(input_mime_type, config_injector):
     config_injector({"data_url": "http://example.com/", "secret": "test"})
     post = model.Post()
     post.post_id = 1
+    post.content_token = "0123456789abcdef"
     post.mime_type = input_mime_type
     assert (
         posts.get_post_thumbnail_url(post)
-        == "http://example.com/generated-thumbnails/1_244c8840887984c4.jpg"
+        == "http://example.com/generated-thumbnails/1_0123456789abcdef.jpg"
     )
 
 
 @pytest.mark.parametrize(
     "input_mime_type,expected_path",
     [
-        ("image/jpeg", "posts/1_244c8840887984c4.jpg"),
-        ("image/gif", "posts/1_244c8840887984c4.gif"),
-        ("totally/unknown", "posts/1_244c8840887984c4.dat"),
+        ("image/jpeg", "posts/1_0123456789abcdef.jpg"),
+        ("image/gif", "posts/1_0123456789abcdef.gif"),
+        ("totally/unknown", "posts/1_0123456789abcdef.dat"),
     ],
 )
 def test_get_post_content_path(input_mime_type, expected_path, config_injector):
     config_injector({"secret": "test"})
     post = model.Post()
     post.post_id = 1
+    post.content_token = "0123456789abcdef"
     post.mime_type = input_mime_type
     assert posts.get_post_content_path(post) == expected_path
 
@@ -66,10 +78,11 @@ def test_get_post_thumbnail_path(input_mime_type, config_injector):
     config_injector({"secret": "test"})
     post = model.Post()
     post.post_id = 1
+    post.content_token = "0123456789abcdef"
     post.mime_type = input_mime_type
     assert (
         posts.get_post_thumbnail_path(post)
-        == "generated-thumbnails/1_244c8840887984c4.jpg"
+        == "generated-thumbnails/1_0123456789abcdef.jpg"
     )
 
 
@@ -78,10 +91,11 @@ def test_get_post_thumbnail_backup_path(input_mime_type, config_injector):
     config_injector({"secret": "test"})
     post = model.Post()
     post.post_id = 1
+    post.content_token = "0123456789abcdef"
     post.mime_type = input_mime_type
     assert (
         posts.get_post_thumbnail_backup_path(post)
-        == "posts/custom-thumbnails/1_244c8840887984c4.dat"
+        == "posts/custom-thumbnails/1_0123456789abcdef.dat"
     )
 
 
@@ -123,6 +137,7 @@ def test_serialize_post(
         auth_user = user_factory(name="auth user")
         post = model.Post()
         post.post_id = 1
+        post.content_token = "0123456789abcdef"
         post.creation_time = datetime(1997, 1, 1)
         post.last_edit_time = datetime(1998, 1, 1)
         post.tags = [
@@ -227,9 +242,9 @@ def test_serialize_post(
             "fileSize": 100,
             "canvasWidth": 200,
             "canvasHeight": 300,
-            "contentUrl": "http://example.com/posts/1_244c8840887984c4.jpg",
+            "contentUrl": "http://example.com/posts/1_0123456789abcdef.jpg",
             "thumbnailUrl": "http://example.com/"
-            "generated-thumbnails/1_244c8840887984c4.jpg",
+            "generated-thumbnails/1_0123456789abcdef.jpg",
             "flags": ["loop"],
             "tags": [
                 {
@@ -374,98 +389,98 @@ def test_update_post_source_with_too_long_string():
             "png.png",
             "image/png",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.png",
+            "1_0123456789abcdef.png",
         ),
         (
             False,
             "png.png",
             "image/png",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.png",
+            "1_0123456789abcdef.png",
         ),
         (
             False,
             "jpeg.jpg",
             "image/jpeg",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.jpg",
+            "1_0123456789abcdef.jpg",
         ),
         (
             False,
             "gif.gif",
             "image/gif",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.gif",
+            "1_0123456789abcdef.gif",
         ),
         (
             False,
             "bmp.bmp",
             "image/bmp",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.bmp",
+            "1_0123456789abcdef.bmp",
         ),
         (
             False,
             "avif.avif",
             "image/avif",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.avif",
+            "1_0123456789abcdef.avif",
         ),
         (
             False,
             "avif-avis.avif",
             "image/avif",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.avif",
+            "1_0123456789abcdef.avif",
         ),
         (
             False,
             "heic.heic",
             "image/heic",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.heic",
+            "1_0123456789abcdef.heic",
         ),
         (
             False,
             "heic-heix.heic",
             "image/heic",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.heic",
+            "1_0123456789abcdef.heic",
         ),
         (
             False,
             "heif.heif",
             "image/heif",
             model.Post.TYPE_IMAGE,
-            "1_244c8840887984c4.heif",
+            "1_0123456789abcdef.heif",
         ),
         (
             False,
             "gif-animated.gif",
             "image/gif",
             model.Post.TYPE_ANIMATION,
-            "1_244c8840887984c4.gif",
+            "1_0123456789abcdef.gif",
         ),
         (
             False,
             "webm.webm",
             "video/webm",
             model.Post.TYPE_VIDEO,
-            "1_244c8840887984c4.webm",
+            "1_0123456789abcdef.webm",
         ),
         (
             False,
             "mp4.mp4",
             "video/mp4",
             model.Post.TYPE_VIDEO,
-            "1_244c8840887984c4.mp4",
+            "1_0123456789abcdef.mp4",
         ),
         (
             False,
             "flash.swf",
             "application/x-shockwave-flash",
             model.Post.TYPE_FLASH,
-            "1_244c8840887984c4.swf",
+            "1_0123456789abcdef.swf",
         ),
     ],
 )
@@ -613,11 +628,11 @@ def test_update_post_thumbnail_to_new_one(
     assert post.post_id
     generated_path = (
         "{}/data/generated-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.jpg"
+        + "1_0123456789abcdef.jpg"
     )
     source_path = (
         "{}/data/posts/custom-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.dat"
+        + "1_0123456789abcdef.dat"
     )
     assert not os.path.exists(generated_path)
     assert not os.path.exists(source_path)
@@ -654,11 +669,11 @@ def test_update_post_thumbnail_to_default(
     assert post.post_id
     generated_path = (
         "{}/data/generated-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.jpg"
+        + "1_0123456789abcdef.jpg"
     )
     source_path = (
         "{}/data/posts/custom-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.dat"
+        + "1_0123456789abcdef.dat"
     )
     assert not os.path.exists(generated_path)
     assert not os.path.exists(source_path)
@@ -694,11 +709,11 @@ def test_update_post_thumbnail_with_broken_thumbnail(
     assert post.post_id
     generated_path = (
         "{}/data/generated-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.jpg"
+        + "1_0123456789abcdef.jpg"
     )
     source_path = (
         "{}/data/posts/custom-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.dat"
+        + "1_0123456789abcdef.dat"
     )
     assert not os.path.exists(generated_path)
     assert not os.path.exists(source_path)
@@ -739,11 +754,11 @@ def test_update_post_content_leaving_custom_thumbnail(
     db.session.flush()
     generated_path = (
         "{}/data/generated-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.jpg"
+        + "1_0123456789abcdef.jpg"
     )
     source_path = (
         "{}/data/posts/custom-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.dat"
+        + "1_0123456789abcdef.dat"
     )
     assert os.path.exists(source_path)
     assert os.path.exists(generated_path)
@@ -771,11 +786,11 @@ def test_update_post_content_convert_heif_to_png_when_processing(
     db.session.flush()
     generated_path = (
         "{}/data/generated-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.jpg"
+        + "1_0123456789abcdef.jpg"
     )
     source_path = (
         "{}/data/posts/custom-thumbnails/".format(tmpdir)
-        + "1_244c8840887984c4.dat"
+        + "1_0123456789abcdef.dat"
     )
     assert os.path.exists(source_path)
     assert os.path.exists(generated_path)
@@ -909,7 +924,6 @@ def test_feature_post(post_factory, user_factory):
 
 
 def test_delete(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     post = post_factory()
     db.session.add(post)
     db.session.flush()
@@ -920,7 +934,6 @@ def test_delete(post_factory, config_injector):
 
 
 def test_merge_posts_deletes_source_post(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     db.session.add_all([source_post, target_post])
@@ -933,7 +946,6 @@ def test_merge_posts_deletes_source_post(post_factory, config_injector):
 
 
 def test_merge_posts_with_itself(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     db.session.add(source_post)
     db.session.flush()
@@ -942,7 +954,6 @@ def test_merge_posts_with_itself(post_factory, config_injector):
 
 
 def test_merge_posts_concatenates_sources(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     source_post.source = "b\nc"
@@ -955,7 +966,6 @@ def test_merge_posts_concatenates_sources(post_factory, config_injector):
 
 
 def test_merge_posts_moves_tags(post_factory, tag_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     tag = tag_factory()
@@ -973,7 +983,6 @@ def test_merge_posts_moves_tags(post_factory, tag_factory, config_injector):
 def test_merge_posts_doesnt_duplicate_tags(
     post_factory, tag_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     tag = tag_factory()
@@ -991,7 +1000,6 @@ def test_merge_posts_doesnt_duplicate_tags(
 def test_merge_posts_moves_comments(
     post_factory, comment_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     comment = comment_factory(post=source_post)
@@ -1008,7 +1016,6 @@ def test_merge_posts_moves_comments(
 def test_merge_posts_moves_scores(
     post_factory, post_score_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     score = post_score_factory(post=source_post, score=1)
@@ -1025,7 +1032,6 @@ def test_merge_posts_moves_scores(
 def test_merge_posts_doesnt_duplicate_scores(
     post_factory, user_factory, post_score_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     user = user_factory()
@@ -1044,7 +1050,6 @@ def test_merge_posts_doesnt_duplicate_scores(
 def test_merge_posts_moves_favorites(
     post_factory, post_favorite_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     favorite = post_favorite_factory(post=source_post)
@@ -1061,7 +1066,6 @@ def test_merge_posts_moves_favorites(
 def test_merge_posts_doesnt_duplicate_favorites(
     post_factory, user_factory, post_favorite_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     user = user_factory()
@@ -1078,7 +1082,6 @@ def test_merge_posts_doesnt_duplicate_favorites(
 
 
 def test_merge_posts_moves_child_relations(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     related_post = post_factory()
@@ -1096,7 +1099,6 @@ def test_merge_posts_moves_child_relations(post_factory, config_injector):
 def test_merge_posts_doesnt_duplicate_child_relations(
     post_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     related_post = post_factory()
@@ -1113,7 +1115,6 @@ def test_merge_posts_doesnt_duplicate_child_relations(
 
 
 def test_merge_posts_moves_parent_relations(post_factory, config_injector):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     related_post = post_factory()
@@ -1133,7 +1134,6 @@ def test_merge_posts_moves_parent_relations(post_factory, config_injector):
 def test_merge_posts_doesnt_duplicate_parent_relations(
     post_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     related_post = post_factory()
@@ -1153,7 +1153,6 @@ def test_merge_posts_doesnt_duplicate_parent_relations(
 def test_merge_posts_doesnt_create_relation_loop_for_children(
     post_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     source_post.relations = [target_post]
@@ -1170,7 +1169,6 @@ def test_merge_posts_doesnt_create_relation_loop_for_children(
 def test_merge_posts_doesnt_create_relation_loop_for_parents(
     post_factory, config_injector
 ):
-    config_injector({"delete_source_files": False})
     source_post = post_factory()
     target_post = post_factory()
     target_post.relations = [source_post]
@@ -1191,7 +1189,6 @@ def test_merge_posts_replaces_content(
         {
             "data_dir": str(tmpdir.mkdir("data")),
             "data_url": "example.com",
-            "delete_source_files": False,
             "thumbnails": {
                 "post_width": 300,
                 "post_height": 300,
@@ -1207,13 +1204,13 @@ def test_merge_posts_replaces_content(
     posts.update_post_content(source_post, content)
     db.session.flush()
     source_path = os.path.join(
-        "{}/data/posts/1_244c8840887984c4.png".format(tmpdir)
+        "{}/data/posts/1_0123456789abcdef.png".format(tmpdir)
     )
     target_path1 = os.path.join(
-        "{}/data/posts/2_49caeb3ec1643406.png".format(tmpdir)
+        "{}/data/posts/2_0123456789abcdef.png".format(tmpdir)
     )
     target_path2 = os.path.join(
-        "{}/data/posts/2_49caeb3ec1643406.dat".format(tmpdir)
+        "{}/data/posts/2_0123456789abcdef.dat".format(tmpdir)
     )
     assert os.path.exists(source_path)
     assert not os.path.exists(target_path1)
@@ -1272,3 +1269,134 @@ def test_purging_video_fingerprint(post_factory, config_injector, read_asset):
     assert db.session.query(model.PostVideoFingerprint).count() == 1
     posts.purge_post_video_fingerprint(post)
     assert db.session.query(model.PostVideoFingerprint).count() == 0
+
+
+@pytest.fixture
+def content_tokens():
+    tokens = iter(["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb", "cccccccccccccccc"])
+    with patch(
+        "szurubooru.func.posts.generate_content_token",
+        side_effect=lambda: next(tokens),
+    ):
+        yield
+
+
+@pytest.fixture
+def data_config(config_injector, tmpdir):
+    config_injector(
+        {
+            "data_dir": str(tmpdir.mkdir("data")),
+            "data_url": "http://example.com/",
+            "thumbnails": {"post_width": 300, "post_height": 300},
+            "secret": "test",
+            "allow_broken_uploads": False,
+        }
+    )
+
+
+def test_update_post_content_rotates_token_and_keeps_old_version(
+    tmpdir, data_config, content_tokens, post_factory, read_asset
+):
+    post = post_factory(id=1)
+    post.content_token = None
+    posts.update_post_content(post, read_asset("png.png"))
+    db.session.add(post)
+    db.session.flush()
+    assert post.content_token == "aaaaaaaaaaaaaaaa"
+    assert db.session.query(model.PostOldContent).count() == 0
+
+    posts.update_post_content(post, read_asset("jpeg.jpg"))
+    db.session.flush()
+    assert post.content_token == "bbbbbbbbbbbbbbbb"
+    assert posts.get_post_content_url(post) == (
+        "http://example.com/posts/1_bbbbbbbbbbbbbbbb.jpg"
+    )
+    old = db.session.query(model.PostOldContent).one()
+    assert (old.post_id, old.token, old.mime_type) == (
+        1,
+        "aaaaaaaaaaaaaaaa",
+        "image/png",
+    )
+    data = str(tmpdir) + "/data/"
+    assert os.path.exists(data + "posts/1_aaaaaaaaaaaaaaaa.png")
+    assert os.path.exists(data + "generated-thumbnails/1_aaaaaaaaaaaaaaaa.jpg")
+    assert os.path.exists(data + "posts/1_bbbbbbbbbbbbbbbb.jpg")
+    assert os.path.exists(data + "generated-thumbnails/1_bbbbbbbbbbbbbbbb.jpg")
+
+
+def test_update_post_content_with_duplicate_does_not_rotate_token(
+    data_config, content_tokens, post_factory, read_asset
+):
+    post = post_factory(id=1)
+    post.content_token = "aaaaaaaaaaaaaaaa"
+    other = post_factory(id=2, checksum=util.get_sha1(read_asset("png.png")))
+    db.session.add_all([post, other])
+    db.session.flush()
+    with pytest.raises(posts.PostAlreadyUploadedError):
+        posts.update_post_content(post, read_asset("png.png"))
+    assert post.content_token == "aaaaaaaaaaaaaaaa"
+    assert db.session.query(model.PostOldContent).count() == 0
+
+
+def test_update_post_content_moves_custom_thumbnail_to_new_token(
+    tmpdir, data_config, content_tokens, post_factory, read_asset
+):
+    post = post_factory(id=1)
+    post.content_token = None
+    posts.update_post_content(post, read_asset("png.png"))
+    db.session.add(post)
+    posts.update_post_thumbnail(post, read_asset("jpeg.jpg"))
+    db.session.flush()
+    data = str(tmpdir) + "/data/posts/custom-thumbnails/"
+    assert os.path.exists(data + "1_aaaaaaaaaaaaaaaa.dat")
+
+    posts.update_post_content(post, read_asset("gif.gif"))
+    db.session.flush()
+    assert not os.path.exists(data + "1_aaaaaaaaaaaaaaaa.dat")
+    assert os.path.exists(data + "1_bbbbbbbbbbbbbbbb.dat")
+
+
+def test_delete_keeps_files_and_records_old_content(
+    tmpdir, data_config, content_tokens, post_factory, read_asset
+):
+    post = post_factory(id=1)
+    post.content_token = None
+    posts.update_post_content(post, read_asset("png.png"))
+    db.session.add(post)
+    db.session.flush()
+    posts.delete(post)
+    db.session.flush()
+    old = db.session.query(model.PostOldContent).one()
+    assert (old.post_id, old.token) == (1, "aaaaaaaaaaaaaaaa")
+    assert os.path.exists(str(tmpdir) + "/data/posts/1_aaaaaaaaaaaaaaaa.png")
+
+
+def test_delete_old_content(tmpdir, data_config, read_asset):
+    data = str(tmpdir) + "/data/"
+    for token, age in (("aaaaaaaaaaaaaaaa", 10), ("bbbbbbbbbbbbbbbb", 1)):
+        files.save("posts/1_%s.png" % token, b"abc")
+        files.save("generated-thumbnails/1_%s.jpg" % token, b"abc")
+        db.session.add(
+            model.PostOldContent(
+                post_id=1,
+                token=token,
+                mime_type="image/png",
+                replaced_time=datetime(2026, 1, 20 - age),
+            )
+        )
+    db.session.flush()
+
+    cutoff = datetime(2026, 1, 15)
+    assert posts.delete_old_content(cutoff, dry_run=True) == (1, 6)
+    assert os.path.exists(data + "posts/1_aaaaaaaaaaaaaaaa.png")
+
+    assert posts.delete_old_content(cutoff) == (1, 6)
+    assert not os.path.exists(data + "posts/1_aaaaaaaaaaaaaaaa.png")
+    assert not os.path.exists(
+        data + "generated-thumbnails/1_aaaaaaaaaaaaaaaa.jpg"
+    )
+    assert os.path.exists(data + "posts/1_bbbbbbbbbbbbbbbb.png")
+    db.session.flush()
+    assert db.session.query(model.PostOldContent).one().token == (
+        "bbbbbbbbbbbbbbbb"
+    )

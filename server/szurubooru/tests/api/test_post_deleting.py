@@ -12,7 +12,6 @@ def inject_config(config_injector):
         {
             "secret": "secret",
             "data_dir": "",
-            "delete_source_files": False,
             "privileges": {"posts:delete": model.User.RANK_REGULAR},
         }
     )

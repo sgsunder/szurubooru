@@ -388,6 +388,7 @@ def post_factory():
         post.checksum = checksum
         post.flags = []
         post.mime_type = "application/octet-stream"
+        post.content_token = "0123456789abcdef"
         post.creation_time = datetime(1996, 1, 1)
         return post
 

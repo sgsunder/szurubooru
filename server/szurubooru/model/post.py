@@ -230,6 +230,24 @@ class PostSignature(Base):
     post = sa.orm.relationship("Post", back_populates="signature")
 
 
+class PostOldContent(Base):
+    """
+    Content files that are no longer served (replaced content or deleted
+    posts). Kept on disk until cleaned up with `szuru-admin`.
+    """
+
+    __tablename__ = "post_old_content"
+
+    old_content_id = sa.Column("id", sa.Integer, primary_key=True)
+    # deliberately not a foreign key: rows outlive the post
+    post_id = sa.Column("post_id", sa.Integer, nullable=False, index=True)
+    token = sa.Column("token", sa.Unicode(16), nullable=False)
+    mime_type = sa.Column("mime-type", sa.Unicode(32), nullable=False)
+    replaced_time = sa.Column(
+        "replaced_time", sa.DateTime, nullable=False, index=True
+    )
+
+
 class Post(Base):
     __tablename__ = "post"
 
@@ -269,6 +287,7 @@ class Post(Base):
     canvas_width = sa.Column("image_width", sa.Integer)
     canvas_height = sa.Column("image_height", sa.Integer)
     mime_type = sa.Column("mime-type", sa.Unicode(32), nullable=False)
+    content_token = sa.Column("content-token", sa.Unicode(16), nullable=False)
 
     # foreign tables
     user = sa.orm.relationship("User")

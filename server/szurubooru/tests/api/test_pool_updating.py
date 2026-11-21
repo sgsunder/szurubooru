@@ -145,7 +145,6 @@ def test_trying_to_create_pools_without_privileges(
                 "pools:create": model.User.RANK_ADMINISTRATOR,
                 "pools:edit:posts": model.User.RANK_REGULAR,
             },
-            "delete_source_files": False,
         }
     )
     with patch("szurubooru.func.posts.get_posts_by_ids"):

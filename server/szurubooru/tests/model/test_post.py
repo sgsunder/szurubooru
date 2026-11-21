@@ -8,7 +8,7 @@ from szurubooru import db, model
 @pytest.fixture(autouse=True)
 def inject_config(config_injector):
     config_injector(
-        {"secret": "secret", "data_dir": "", "delete_source_files": False}
+        {"secret": "secret", "data_dir": ""}
     )
 
 
@@ -25,6 +25,7 @@ def test_saving_post(post_factory, user_factory, tag_factory):
     post.creation_time = datetime(1997, 1, 1)
     post.last_edit_time = datetime(1998, 1, 1)
     post.mime_type = "application/whatever"
+    post.content_token = "0123456789abcdef"
     db.session.add_all([user, tag1, tag2, related_post1, related_post2, post])
 
     post.user = user

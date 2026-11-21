@@ -8,7 +8,7 @@ from szurubooru import db, model
 @pytest.fixture(autouse=True)
 def inject_config(config_injector):
     config_injector(
-        {"delete_source_files": False, "secret": "secret", "data_dir": ""}
+        {"secret": "secret", "data_dir": ""}
     )
 
 

@@ -5,14 +5,12 @@ Collection of CLI commands for an administrator to use
 """
 
 import logging
-import os
-import re
-import time
 from argparse import ArgumentParser
+from datetime import datetime, timedelta, timezone
 from getpass import getpass
 from sys import stderr
 
-from szurubooru import config, db, errors, model
+from szurubooru import db, errors, model
 from szurubooru.func import files, images
 from szurubooru.func import posts as postfuncs
 from szurubooru.func import users as userfuncs
@@ -59,36 +57,22 @@ def check_audio() -> None:
             print("Post %d has no sound data but is flagged" % post.post_id)
 
 
-def reset_filenames() -> None:
-    regex = re.compile(r"(\d+)_[0-9a-f]{16}\.(\S+)")
-
-    def convert_to_new_filename(old_name: str) -> str:
-        matches = regex.match(old_name)
-        if not matches:
-            return None
-        post_id = int(matches.group(1))
-        post_ext = matches.group(2)
-        return "%d_%s.%s" % (
-            post_id,
-            postfuncs.get_post_security_hash(post_id),
-            post_ext,
+def clean_old_content(days: int, dry_run: bool) -> None:
+    deleted = postfuncs.delete_old_content(
+        datetime.now(timezone.utc).replace(tzinfo=None)
+        - timedelta(days=days),
+        dry_run,
+    )
+    if not dry_run:
+        db.get_session().commit()
+    print(
+        "%s %d old content version(s), %.2f MiB"
+        % (
+            "Would delete" if dry_run else "Deleted",
+            deleted[0],
+            deleted[1] / 1024 / 1024,
         )
-
-    def rename_in_dir(dir: str) -> None:
-        for old_path in os.listdir(config.config["data_dir"] + dir):
-            new_path = convert_to_new_filename(old_path)
-            if not new_path:
-                continue
-            if old_path != new_path:
-                print("%s -> %s" % (dir + old_path, dir + new_path))
-                os.rename(
-                    config.config["data_dir"] + dir + old_path,
-                    config.config["data_dir"] + dir + new_path,
-                )
-
-    rename_in_dir("posts/")
-    rename_in_dir("generated-thumbnails/")
-    rename_in_dir("posts/custom-thumbnails/")
+    )
 
 
 def regenerate_thumbnails() -> None:
@@ -118,10 +102,16 @@ def main() -> None:
         "noting discrepancies, without modifying posts",
     )
     parser.add_argument(
-        "--reset-filenames",
+        "--clean-old-content",
+        type=int,
+        metavar="<days>",
+        help="delete replaced/deleted post files that have been "
+        "orphaned for more than the given number of days",
+    )
+    parser_top.add_argument(
+        "--dry-run",
         action="store_true",
-        help="reset and rename the content and thumbnail "
-        "filenames in case of a lost/changed secret key",
+        help="with --clean-old-content, only report what would be deleted",
     )
     parser.add_argument(
         "--regenerate-thumbnails",
@@ -136,8 +126,8 @@ def main() -> None:
             reset_password(command.change_password)
         elif command.check_all_audio:
             check_audio()
-        elif command.reset_filenames:
-            reset_filenames()
+        elif command.clean_old_content is not None:
+            clean_old_content(command.clean_old_content, command.dry_run)
         elif command.regenerate_thumbnails:
             regenerate_thumbnails()
     except errors.BaseError as e:

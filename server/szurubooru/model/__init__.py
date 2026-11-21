@@ -9,6 +9,7 @@ from szurubooru.model.post import (
     PostFeature,
     PostInspiration,
     PostNote,
+    PostOldContent,
     PostRelation,
     PostScore,
     PostSignature,

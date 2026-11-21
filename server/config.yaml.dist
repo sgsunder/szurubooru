@@ -8,10 +8,6 @@ domain: # example: http://example.com
 # used to salt the users' password hashes and generate filenames for static content
 secret: change
 
-# Delete thumbnails and source files on post delete
-# Used to mitigate the impacts of admins going on unchecked post purges.
-delete_source_files: yes
-
 thumbnails:
     avatar_width: 300
     avatar_height: 300

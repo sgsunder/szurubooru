@@ -1,5 +1,6 @@
 import hmac
 import logging
+import secrets
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -100,6 +101,7 @@ FLAG_MAP = {
 
 
 def get_post_security_hash(id: int) -> str:
+    """Legacy file name hash; only used to backfill existing posts."""
     return hmac.new(
         config.config["secret"].encode("utf8"),
         msg=str(id).encode("utf-8"),
@@ -107,49 +109,56 @@ def get_post_security_hash(id: int) -> str:
     ).hexdigest()[0:16]
 
 
+def generate_content_token() -> str:
+    return secrets.token_hex(8)
+
+
+def _content_file_name(post_id: int, token: str, mime_type: str) -> str:
+    return "%d_%s.%s" % (post_id, token, mime.get_extension(mime_type) or "dat")
+
+
+def get_content_path(post_id: int, token: str, mime_type: str) -> str:
+    return "posts/" + _content_file_name(post_id, token, mime_type)
+
+
+def get_thumbnail_path(post_id: int, token: str) -> str:
+    return "generated-thumbnails/%d_%s.jpg" % (post_id, token)
+
+
+def get_thumbnail_backup_path(post_id: int, token: str) -> str:
+    return "posts/custom-thumbnails/%d_%s.dat" % (post_id, token)
+
+
 def get_post_content_url(post: model.Post) -> str:
     assert post
-    return "%s/posts/%d_%s.%s" % (
+    return "%s/%s" % (
         config.config["data_url"].rstrip("/"),
-        post.post_id,
-        get_post_security_hash(post.post_id),
-        mime.get_extension(post.mime_type) or "dat",
+        get_content_path(post.post_id, post.content_token, post.mime_type),
     )
 
 
 def get_post_thumbnail_url(post: model.Post) -> str:
     assert post
-    return "%s/generated-thumbnails/%d_%s.jpg" % (
+    return "%s/%s" % (
         config.config["data_url"].rstrip("/"),
-        post.post_id,
-        get_post_security_hash(post.post_id),
+        get_thumbnail_path(post.post_id, post.content_token),
     )
 
 
 def get_post_content_path(post: model.Post) -> str:
     assert post
     assert post.post_id
-    return "posts/%d_%s.%s" % (
-        post.post_id,
-        get_post_security_hash(post.post_id),
-        mime.get_extension(post.mime_type) or "dat",
-    )
+    return get_content_path(post.post_id, post.content_token, post.mime_type)
 
 
 def get_post_thumbnail_path(post: model.Post) -> str:
     assert post
-    return "generated-thumbnails/%d_%s.jpg" % (
-        post.post_id,
-        get_post_security_hash(post.post_id),
-    )
+    return get_thumbnail_path(post.post_id, post.content_token)
 
 
 def get_post_thumbnail_backup_path(post: model.Post) -> str:
     assert post
-    return "posts/custom-thumbnails/%d_%s.dat" % (
-        post.post_id,
-        get_post_security_hash(post.post_id),
-    )
+    return get_thumbnail_backup_path(post.post_id, post.content_token)
 
 
 def serialize_note(note: model.PostNote) -> rest.Response:
@@ -470,14 +479,31 @@ def _after_post_update(
 def _before_post_delete(
     _mapper: Any, _connection: Any, post: model.Post
 ) -> None:
-    if post.post_id:
-        if config.config["delete_source_files"]:
-            files.delete(get_post_content_path(post))
-            files.delete(get_post_thumbnail_path(post))
+    if post.post_id and post.content_token:
+        # files stay on disk until `szuru-admin --clean-old-content`
+        _connection.execute(
+            sa.insert(model.PostOldContent.__table__).values(
+                {
+                    "post_id": post.post_id,
+                    "token": post.content_token,
+                    "mime-type": post.mime_type,
+                    "replaced_time": datetime.now(timezone.utc).replace(
+                        tzinfo=None
+                    ),
+                }
+            )
+        )
 
 
 def _sync_post_content(post: model.Post) -> None:
     regenerate_thumb = False
+
+    if hasattr(post, "__old_token"):
+        old_token = getattr(post, "__old_token")
+        delattr(post, "__old_token")
+        old_backup_path = get_thumbnail_backup_path(post.post_id, old_token)
+        if not hasattr(post, "__thumbnail") and files.has(old_backup_path):
+            files.move(old_backup_path, get_post_thumbnail_backup_path(post))
 
     if hasattr(post, "__content"):
         content = getattr(post, "__content")
@@ -498,6 +524,34 @@ def _sync_post_content(post: model.Post) -> None:
 
     if regenerate_thumb:
         generate_post_thumbnail(post)
+
+
+def delete_old_content(
+    older_than: datetime, dry_run: bool = False
+) -> Tuple[int, int]:
+    """
+    Delete the files of content versions replaced before `older_than`.
+    Returns the number of versions and the number of bytes freed.
+    """
+    count = 0
+    freed = 0
+    old_contents = db.session.query(model.PostOldContent).filter(
+        model.PostOldContent.replaced_time < older_than
+    )
+    for old in old_contents:
+        paths = [
+            get_content_path(old.post_id, old.token, old.mime_type),
+            get_thumbnail_path(old.post_id, old.token),
+            get_thumbnail_backup_path(old.post_id, old.token),
+        ]
+        for path in paths:
+            freed += files.get_size(path)
+            if not dry_run:
+                files.delete(path)
+        count += 1
+        if not dry_run:
+            db.session.delete(old)
+    return count, freed
 
 
 def generate_alternate_formats(
@@ -672,6 +726,7 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
 
     update_signature = False
     update_video_fingerprint = False
+    old_mime_type = post.mime_type
     post.mime_type = mime.get_mime_type(content)
     if mime.is_flash(post.mime_type):
         post.type = model.Post.TYPE_FLASH
@@ -703,6 +758,21 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
         and other_post.post_id != post.post_id
     ):
         raise PostAlreadyUploadedError(other_post)
+
+    old_token = post.content_token
+    if old_token and post.post_id:
+        # keep the previous version on disk, but stop serving it
+        db.session.add(
+            model.PostOldContent(
+                post_id=post.post_id,
+                token=old_token,
+                mime_type=old_mime_type,
+                replaced_time=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+        )
+        if not hasattr(post, "__old_token"):
+            setattr(post, "__old_token", old_token)
+    post.content_token = generate_content_token()
 
     if update_signature:
         purge_post_signature(post)

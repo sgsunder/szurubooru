@@ -18,6 +18,11 @@ def has(path: str) -> bool:
     return os.path.exists(_get_full_path(path))
 
 
+def get_size(path: str) -> int:
+    full_path = _get_full_path(path)
+    return os.path.getsize(full_path) if os.path.exists(full_path) else 0
+
+
 def scan(path: str) -> List[Any]:
     if has(path):
         return list(os.scandir(_get_full_path(path)))
