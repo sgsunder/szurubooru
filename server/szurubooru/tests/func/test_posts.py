@@ -1244,3 +1244,31 @@ def test_search_by_image(
 
     result2 = posts.search_by_image(read_asset("png.png"))
     assert not result2
+
+
+def test_search_by_video(post_factory, config_injector, read_asset):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory()
+    content = read_asset("mp4.mp4")
+    posts.generate_post_video_fingerprint(post, content)
+    db.session.flush()
+
+    result = posts.search_by_video(content)
+    assert len(result) == 1
+    distance, match = result[0]
+    assert distance == 0
+    assert match.post_id == post.post_id
+
+    post.video_fingerprint.duration *= 2
+    db.session.flush()
+    assert not posts.search_by_video(content)
+
+
+def test_purging_video_fingerprint(post_factory, config_injector, read_asset):
+    config_injector({"allow_broken_uploads": False})
+    post = post_factory()
+    posts.generate_post_video_fingerprint(post, read_asset("mp4.mp4"))
+    db.session.flush()
+    assert db.session.query(model.PostVideoFingerprint).count() == 1
+    posts.purge_post_video_fingerprint(post)
+    assert db.session.query(model.PostVideoFingerprint).count() == 0

@@ -13,6 +13,7 @@ from szurubooru.func.file_uploads import purge_old_uploads
 from szurubooru.func.posts import (
     update_all_md5_checksums,
     update_all_post_signatures,
+    update_all_video_fingerprints,
 )
 
 
@@ -130,6 +131,7 @@ def purge_old_uploads_daemon() -> None:
 
 _live_migrations = (
     update_all_post_signatures,
+    update_all_video_fingerprints,
     update_all_md5_checksums,
 )
 

@@ -1,6 +1,7 @@
 {
   lib,
   python3,
+  coreutils,
   ffmpeg-headless,
 }: let
   src = ./.;
@@ -52,7 +53,7 @@
       "--prefix"
       "PATH"
       ":"
-      "${lib.makeBinPath [ffmpeg-headless]}"
+      "${lib.makeBinPath [ffmpeg-headless coreutils]}"
     ];
 
     postInstall = ''

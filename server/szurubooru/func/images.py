@@ -5,7 +5,7 @@ import re
 import shlex
 import subprocess
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 
 from pillow_heif import register_heif_opener
 from PIL import Image as PILImage
@@ -45,6 +45,30 @@ class Image:
     @property
     def frames(self) -> int:
         return self.info["streams"][0]["nb_read_frames"]
+
+    @property
+    def duration(self) -> float:
+        return float(self.info["format"].get("duration") or 0)
+
+    def get_gray_frames(
+        self, size: int, fps: Optional[float], low_priority: bool = False
+    ) -> bytes:
+        """Raw 8-bit grayscale size x size frames, sampled at fps if given."""
+        sampling = f"fps={fps}," if fps else ""
+        return self._execute(
+            [
+                "-i",
+                "{path}",
+                "-an",
+                "-sn",
+                "-vf",
+                f"{sampling}scale={size}:{size}:flags=area,format=gray",
+                "-f",
+                "rawvideo",
+                "-",
+            ],
+            low_priority=low_priority,
+        )
 
     def resize_fill(self, width: int, height: int) -> None:
         width_greater = self.width > self.height
@@ -268,6 +292,7 @@ class Image:
         program: str = "ffmpeg",
         ignore_error_if_data: bool = False,
         get_logs: bool = False,
+        low_priority: bool = False,
     ) -> bytes:
         mime_type = mime.get_mime_type(self.content)
         if mime.is_heif(mime_type):
@@ -280,6 +305,8 @@ class Image:
             handle.write(self.content)
             handle.flush()
             cli = [program, "-loglevel", "32" if get_logs else "24"] + cli
+            if low_priority:
+                cli = ["nice", "-n", "10"] + cli
             cli = [part.format(path=handle.name) for part in cli]
             proc = subprocess.Popen(
                 cli,

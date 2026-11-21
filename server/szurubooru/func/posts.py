@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 import sqlalchemy as sa
 
 from szurubooru import config, db, errors, model, rest
@@ -19,6 +20,7 @@ from szurubooru.func import (
     tags,
     users,
     util,
+    video_hash,
 )
 
 logger = logging.getLogger(__name__)
@@ -594,6 +596,57 @@ def update_all_post_signatures() -> None:
             logger.exception(ex)
 
 
+def purge_post_video_fingerprint(post: model.Post) -> None:
+    (
+        db.session.query(model.PostVideoFingerprint)
+        .filter(model.PostVideoFingerprint.post_id == post.post_id)
+        .delete()
+    )
+
+
+def generate_post_video_fingerprint(
+    post: model.Post, content: bytes, low_priority: bool = False
+) -> None:
+    try:
+        duration, hashes = video_hash.generate_fingerprint(
+            content, low_priority
+        )
+        db.session.add(
+            model.PostVideoFingerprint(
+                post=post,
+                duration=duration,
+                hashes=video_hash.pack_fingerprint(hashes),
+            )
+        )
+    except errors.ProcessingError:
+        if not config.config["allow_broken_uploads"]:
+            raise InvalidPostContentError(
+                "Unable to generate video fingerprint."
+            )
+
+
+def update_all_video_fingerprints() -> None:
+    posts_to_hash = (
+        db.session.query(model.Post)
+        .filter(model.Post.type == model.Post.TYPE_VIDEO)
+        .filter(model.Post.video_fingerprint == None)  # noqa: E711
+        .order_by(model.Post.post_id.asc())
+        .all()
+    )
+    for post in posts_to_hash:
+        try:
+            generate_post_video_fingerprint(
+                post,
+                files.get(get_post_content_path(post)),
+                low_priority=True,
+            )
+            db.session.commit()
+            logger.info("Created Video Fingerprint - Post %d", post.post_id)
+        except Exception as ex:
+            db.session.rollback()
+            logger.exception(ex)
+
+
 def update_all_md5_checksums() -> None:
     posts_to_hash = (
         db.session.query(model.Post)
@@ -618,6 +671,7 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
         raise InvalidPostContentError("Post content missing.")
 
     update_signature = False
+    update_video_fingerprint = False
     post.mime_type = mime.get_mime_type(content)
     if mime.is_flash(post.mime_type):
         post.type = model.Post.TYPE_FLASH
@@ -628,6 +682,7 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
         else:
             post.type = model.Post.TYPE_IMAGE
     elif mime.is_video(post.mime_type):
+        update_video_fingerprint = True
         post.type = model.Post.TYPE_VIDEO
     else:
         raise InvalidPostContentError(
@@ -652,6 +707,10 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
     if update_signature:
         purge_post_signature(post)
         generate_post_signature(post, content)
+
+    purge_post_video_fingerprint(post)
+    if update_video_fingerprint:
+        generate_post_video_fingerprint(post, content)
 
     post.file_size = len(content)
     try:
@@ -931,6 +990,7 @@ def merge_posts(
 
     # fixes unknown issue with SA's cascade deletions
     purge_post_signature(source_post)
+    purge_post_video_fingerprint(source_post)
     delete(source_post)
     db.session.flush()
 
@@ -988,3 +1048,32 @@ def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
         ]
     else:
         return []
+
+
+def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
+    duration, hashes = video_hash.generate_fingerprint(video_content)
+    tolerance = 1 + video_hash.DURATION_TOLERANCE
+    candidates = (
+        db.session.query(model.PostVideoFingerprint)
+        .filter(model.PostVideoFingerprint.duration >= duration / tolerance)
+        .filter(model.PostVideoFingerprint.duration <= duration * tolerance)
+        .all()
+    )
+    if not candidates:
+        return []
+    distances = video_hash.mean_distances(
+        np.array(
+            [video_hash.unpack_fingerprint(c.hashes) for c in candidates],
+            dtype=np.uint64,
+        ),
+        hashes,
+    )
+    matches = sorted(
+        (float(distance), candidate.post_id)
+        for candidate, distance in zip(candidates, distances)
+        if distance <= video_hash.MAX_DISTANCE
+    )
+    return [
+        (distance / video_hash.HASH_BITS, try_get_post_by_id(post_id))
+        for distance, post_id in matches
+    ]

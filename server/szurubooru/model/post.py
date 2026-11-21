@@ -188,6 +188,23 @@ class PostTag(Base):
         self.tag_id = tag_id
 
 
+class PostVideoFingerprint(Base):
+    __tablename__ = "post_video_fingerprint"
+
+    post_id = sa.Column(
+        "post_id",
+        sa.Integer,
+        sa.ForeignKey("post.id"),
+        primary_key=True,
+        nullable=False,
+        index=True,
+    )
+    duration = sa.Column("duration", sa.Float, nullable=False, index=True)
+    hashes = sa.Column("hashes", sa.LargeBinary, nullable=False)
+
+    post = sa.orm.relationship("Post", back_populates="video_fingerprint")
+
+
 class PostSignature(Base):
     __tablename__ = "post_signature"
 
@@ -261,6 +278,12 @@ class Post(Base):
         uselist=False,
         cascade="all, delete, delete-orphan",
         lazy="joined",
+        back_populates="post",
+    )
+    video_fingerprint = sa.orm.relationship(
+        "PostVideoFingerprint",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
         back_populates="post",
     )
     relations = sa.orm.relationship(

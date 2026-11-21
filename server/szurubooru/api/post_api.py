@@ -313,7 +313,10 @@ def get_posts_by_image(
     content = ctx.get_file("content")
 
     try:
-        lookalikes = posts.search_by_image(content)
+        if mime.is_video(mime.get_mime_type(content)):
+            lookalikes = posts.search_by_video(content)
+        else:
+            lookalikes = posts.search_by_image(content)
     except (errors.ThirdPartyError, errors.ProcessingError):
         lookalikes = []
 

@@ -1252,7 +1252,7 @@ data.
 
 - **Files**
 
-    - `content` - the image to search for.
+    - `content` - the image or video to search for.
 
 - **Output**
 
@@ -1264,7 +1264,9 @@ data.
 
 - **Description**
 
-    Retrieves posts that look like the input image.
+    Retrieves posts that look like the input image or video. For videos, posts
+    are matched by runtime and per-frame perceptual hashes, so re-encodes of the
+    same footage are found.
 
 ## Listing pool categories
 - **Request**
