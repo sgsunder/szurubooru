@@ -1256,7 +1256,7 @@ def test_search_by_video(post_factory, config_injector, read_asset):
     assert distance == 0
     assert match.post_id == post.post_id
 
-    post.video_fingerprint.duration *= 2
+    post.video_fingerprint.duration = post.video_fingerprint.duration * 2 + 10
     db.session.flush()
     assert not posts.search_by_video(content)
 

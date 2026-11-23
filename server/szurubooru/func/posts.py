@@ -1122,11 +1122,13 @@ def search_by_image(image_content: bytes) -> List[Tuple[float, model.Post]]:
 
 def search_by_video(video_content: bytes) -> List[Tuple[float, model.Post]]:
     duration, hashes = video_hash.generate_fingerprint(video_content)
-    tolerance = 1 + video_hash.DURATION_TOLERANCE
+    margin = (
+        duration * video_hash.DURATION_TOLERANCE + video_hash.DURATION_SLACK
+    )
     candidates = (
         db.session.query(model.PostVideoFingerprint)
-        .filter(model.PostVideoFingerprint.duration >= duration / tolerance)
-        .filter(model.PostVideoFingerprint.duration <= duration * tolerance)
+        .filter(model.PostVideoFingerprint.duration >= duration - margin)
+        .filter(model.PostVideoFingerprint.duration <= duration + margin)
         .all()
     )
     if not candidates:

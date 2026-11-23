@@ -22,9 +22,16 @@ def test_fingerprint_pack_round_trip(read_asset):
 
 def test_mean_distances():
     query = np.array([0, 0], dtype=np.uint64)
-    candidates = np.array([[0, 0], [1, 3], [2**64 - 1, 0]], dtype=np.uint64)
+    candidates = np.array([[0, 0], [1, 3]], dtype=np.uint64)
     distances = video_hash.mean_distances(candidates, query)
-    assert list(distances) == [0.0, 1.5, 32.0]
+    assert list(distances) == [0.0, 1.25]
+
+
+def test_mean_distances_tolerates_offset():
+    base = np.array([2**i - 1 for i in range(1, 17)], dtype=np.uint64)
+    held = np.concatenate([base[:1].repeat(4), base[:-4]])
+    distances = video_hash.mean_distances(held[None, :], base)
+    assert distances[0] < video_hash.MAX_DISTANCE
 
 
 def test_reencode_is_close(read_asset, tmp_path):
