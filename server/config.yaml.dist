@@ -24,6 +24,11 @@ inspirations:
 user_agent: Mozilla/5.0 (compatible; szurubooru/2.5)
 max_dl_filesize: 2.0E+9 # maximum filesize limit in bytes
 
+# proxy services used to look up the author of Pixiv / Reddit source URLs
+# (https://github.com/thelaao/phixiv, https://github.com/dylanpdx/vxReddit)
+#phixiv_host: phixiv.net
+#vxreddit_host: vxreddit.com
+
 # automatically convert animated GIF uploads to video formats
 convert:
    gif:
@@ -127,6 +132,7 @@ privileges:
     'tags:edit:implications':       power
     'tags:edit:suggestions':        power
     'tags:recommendations':         regular
+    'tags:resolve_source':          regular
     'tags:list':                    regular
     'tags:view':                    anonymous
     'tags:merge':                   moderator

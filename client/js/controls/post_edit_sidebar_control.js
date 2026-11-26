@@ -3,6 +3,7 @@
 const api = require("../api.js");
 const events = require("../events.js");
 const misc = require("../util/misc.js");
+const uri = require("../util/uri.js");
 const views = require("../util/views.js");
 const Note = require("../models/note.js");
 const Point = require("../models/point.js");
@@ -601,6 +602,27 @@ class PostEditSidebarControl extends events.EventTarget {
                 }
                 return;
             }
+        }
+
+        // Sources that don't embed the author need a server-side lookup
+        const lookupPatterns = [
+            /^https?:\/\/(?:[\w-]+\.)?reddit\.com\/(?:r\/\w+\/)?comments\/\w+/i,
+            /^https?:\/\/(?:www\.)?pixiv\.net\/(?:\w+\/)?artworks\/\d+/i,
+        ];
+        if (lookupPatterns.some((pattern) => pattern.test(source))) {
+            api.get(uri.formatApiLink("source-tag", { url: source })).then(
+                (response) => {
+                    if (response.tag) {
+                        this._tagControl.addTagByName(
+                            response.tag,
+                            "source-match"
+                        );
+                    }
+                },
+                (error) => {
+                    alert("Failed to look up source: " + error.message);
+                }
+            );
         }
     }
 

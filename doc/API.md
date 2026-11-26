@@ -33,6 +33,7 @@
         - [Merging tags](#merging-tags)
         - [Listing tag siblings](#listing-tag-siblings)
         - [Getting tag recommendations](#getting-tag-recommendations)
+        - [Resolving source tag](#resolving-source-tag)
     - Posts
         - [Listing posts](#listing-posts)
         - [Creating post](#creating-post)
@@ -770,6 +771,35 @@ data.
     co-occur with the given tags more often than their overall popularity
     would predict, so generically common tags don't dominate the results.
     `limit` defaults to 10 and is capped at 50. Doesn't use paging.
+
+## Resolving source tag
+- **Request**
+
+    `GET /source-tag/?url=<url>`
+
+- **Output**
+
+    ```json5
+    {
+        "tag": <tag-name>
+    }
+    ```
+    ...where `<tag-name>` is a string, or `null` if no tag could be derived.
+
+- **Errors**
+
+    - `url` is missing
+    - the source site could not be queried or returned an error
+    - privileges are too low
+
+- **Description**
+
+    For source URLs that don't contain the author's identity, queries a
+    proxy service (phixiv for Pixiv, vxReddit for Reddit; hosts configurable
+    via `phixiv_host` / `vxreddit_host`) and returns the corresponding tag
+    name. Currently supported:
+    Reddit posts (`<author>.reddit`) and Pixiv artworks
+    (`<user id>.pixiv_id`). Unsupported URLs yield `null`.
 
 ## Listing posts
 - **Request**
