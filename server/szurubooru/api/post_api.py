@@ -7,6 +7,7 @@ from szurubooru.func import (
     favorites,
     inspirations,
     mime,
+    net,
     posts,
     scores,
     serialization,
@@ -70,7 +71,9 @@ def create_post(
     safety = ctx.get_param_as_string("safety")
     source = ctx.get_param_as_string("source", default="")
     if ctx.has_param("contentUrl") and not source:
-        source = ctx.get_param_as_string("contentUrl", default="")
+        content_url = ctx.get_param_as_string("contentUrl", default="")
+        if not net.is_source_excluded(content_url):
+            source = content_url
     relations = ctx.get_param_as_int_list("relations", default=[])
     notes = ctx.get_param_as_list("notes", default=[])
     flags = ctx.get_param_as_string_list(
@@ -151,7 +154,9 @@ def update_post(ctx: rest.Context, params: Dict[str, str]) -> rest.Response:
         auth.verify_privilege(ctx.user, "posts:edit:source")
         posts.update_post_source(post, ctx.get_param_as_string("source"))
     elif ctx.has_param("contentUrl"):
-        posts.update_post_source(post, ctx.get_param_as_string("contentUrl"))
+        content_url = ctx.get_param_as_string("contentUrl")
+        if not net.is_source_excluded(content_url):
+            posts.update_post_source(post, content_url)
     if ctx.has_param("relations"):
         auth.verify_privilege(ctx.user, "posts:edit:relations")
         posts.update_post_relations(

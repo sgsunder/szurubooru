@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -19,6 +20,11 @@ class DownloadError(errors.ProcessingError):
 
 class DownloadTooLargeError(DownloadError):
     pass
+
+
+def is_source_excluded(url: str) -> bool:
+    patterns = config.config.get("download_source_exclude_patterns") or []
+    return any(re.search(pattern, url) for pattern in patterns)
 
 
 def download(url: str, use_video_downloader: bool = False) -> bytes:

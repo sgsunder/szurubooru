@@ -130,6 +130,40 @@ def test_uploading_from_url_saves_source(
         posts.update_post_source.assert_called_once_with(post, "example.com")
 
 
+def test_uploading_from_url_excluded_from_source(
+    config_injector, context_factory, post_factory, user_factory
+):
+    post = post_factory()
+    db.session.add(post)
+    db.session.flush()
+    with patch("szurubooru.func.net.download"), patch(
+        "szurubooru.func.posts.serialize_post"
+    ), patch("szurubooru.func.posts.update_post_content"), patch(
+        "szurubooru.func.posts.update_post_source"
+    ), patch(
+        "szurubooru.func.snapshots.modify"
+    ):
+        config_injector(
+            {
+                "privileges": {
+                    "posts:edit:content": model.User.RANK_REGULAR,
+                    "uploads:use_downloader": model.User.RANK_REGULAR,
+                },
+                "download_source_exclude_patterns": ["^example\\.com$"],
+            }
+        )
+        net.download.return_value = b"content"
+        api.post_api.update_post(
+            context_factory(
+                params={"contentUrl": "example.com", "version": 1},
+                user=user_factory(rank=model.User.RANK_REGULAR),
+            ),
+            {"post_id": post.post_id},
+        )
+        posts.update_post_content.assert_called_once_with(post, b"content")
+        posts.update_post_source.assert_not_called()
+
+
 def test_uploading_from_url_with_source_specified(
     context_factory, post_factory, user_factory
 ):

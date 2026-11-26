@@ -23,6 +23,9 @@ inspirations:
 # settings used to download files from the web on behalf of the api users
 user_agent: Mozilla/5.0 (compatible; szurubooru/2.5)
 max_dl_filesize: 2.0E+9 # maximum filesize limit in bytes
+# URLs matching any of these regexes (re.search) are not added to a post's
+# source when the post is created/updated from a download URL
+download_source_exclude_patterns: []
 
 # automatically convert animated GIF uploads to video formats
 convert:

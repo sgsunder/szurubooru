@@ -222,6 +222,45 @@ def test_creating_from_url_saves_source(
         posts.update_post_source.assert_called_once_with(post, "example.com")
 
 
+def test_creating_from_url_excluded_from_source(
+    config_injector, context_factory, post_factory, user_factory
+):
+    auth_user = user_factory(rank=model.User.RANK_REGULAR)
+    post = post_factory()
+    db.session.add(post)
+    db.session.flush()
+
+    with patch("szurubooru.func.net.download"), patch(
+        "szurubooru.func.posts.serialize_post"
+    ), patch("szurubooru.func.posts.create_post"), patch(
+        "szurubooru.func.posts.update_post_source"
+    ), patch(
+        "szurubooru.func.snapshots._post_to_webhooks"
+    ):
+        config_injector(
+            {
+                "privileges": {
+                    "posts:create:identified": model.User.RANK_REGULAR,
+                    "uploads:use_downloader": model.User.RANK_POWER,
+                },
+                "download_source_exclude_patterns": ["^example\\.com$"],
+            }
+        )
+        net.download.return_value = b"content"
+        posts.create_post.return_value = [post, []]
+        api.post_api.create_post(
+            context_factory(
+                params={
+                    "safety": "safe",
+                    "tags": ["tag1", "tag2"],
+                    "contentUrl": "example.com",
+                },
+                user=auth_user,
+            )
+        )
+        posts.update_post_source.assert_called_once_with(post, "")
+
+
 def test_creating_from_url_with_source_specified(
     config_injector, context_factory, post_factory, user_factory
 ):

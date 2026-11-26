@@ -156,3 +156,19 @@ def test_multiple_webhooks(config_injector):
 def test_malformed_webhooks(config_injector):
     with pytest.raises(ValueError):
         net._post_to_webhook("malformed_url", {"test_arg": "test_value"})
+
+
+def test_source_exclusion_defaults_to_nothing(config_injector):
+    config_injector({})
+    assert not net.is_source_excluded("http://example.com/a.jpg")
+    config_injector({"download_source_exclude_patterns": []})
+    assert not net.is_source_excluded("http://example.com/a.jpg")
+
+
+def test_source_exclusion_patterns(config_injector):
+    config_injector(
+        {"download_source_exclude_patterns": [r"^https?://cdn\.", "tmp"]}
+    )
+    assert net.is_source_excluded("http://cdn.example.com/a.jpg")
+    assert net.is_source_excluded("http://example.com/tmp/a.jpg")
+    assert not net.is_source_excluded("http://example.com/a.jpg")
